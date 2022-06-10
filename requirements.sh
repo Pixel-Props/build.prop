@@ -1,3 +1,7 @@
+#!/bin/bash
+
+[[ $(type -t "print_message") != function ]] && ./util_functions.sh
+
 # Make sure 7z is installed
 if ! hash 7z 2>/dev/null; then
 	print_message "7z was not found, you can run \"apt install p7zip-full\" in order to install it." error
@@ -11,8 +15,7 @@ if ! hash dos2unix 2>/dev/null; then
 fi
 
 # Install imjtool if not already installed
-if [ ! -f "./imjtool" ]; then
+while [ ! -f "./imjtool" ]; do
 	print_message "./imjtool not found. Installing imjtool..." info
-	wget -O - http://newandroidbook.com/tools/imjtool.tgz &>/dev/null | tar xz imjtool.ELF64 &>/dev/null
-	mv imjtool.ELF64 imjtool
-fi
+	wget --tries=inf --show-progress -q -O "imjtool" "http://newandroidbook.com/tools/imjtool"
+done

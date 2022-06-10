@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Using util_functions.sh
 [ -f "util_functions.sh" ] && . ./util_functions.sh || { echo "util_functions.sh not found" && exit 1; }
 
@@ -12,15 +14,15 @@ for file in ./*; do                    # List directory ./*
 			extraction_start=$(date +%s)
 
 			# Extract images
-			7z e $file -o"extracted_factoryimages" "*/*.zip" -r -y &>/dev/null
-			rm $file
+			7z e "$file" -o"extracted_factoryimages" "*/*.zip" -r -y &>/dev/null
+			rm "$file"
 
 			# Time the extraction
 			extraction_end=$(date +%s)
 			extraction_runtime=$((extraction_end - extraction_start))
 
 			# Print the time
-			print_message "Extraction time: $extraction_runtime seconds" info
+			print_message "Extraction time: $extraction_runtime seconds" debug
 		fi
 	fi
 done
@@ -46,7 +48,7 @@ if [ -d "extracted_factoryimages" ]; then
 				extraction_runtime=$((extraction_end - extraction_start))
 
 				# Print the time
-				print_message "Extraction time: $extraction_runtime seconds" info
+				print_message "Extraction time: $extraction_runtime seconds" debug
 			fi
 		fi
 	done
@@ -75,10 +77,10 @@ for dir in ./*; do      # List directory ./*
 		extraction_runtime=$((extraction_end - extraction_start))
 
 		# Print the extraction time
-		print_message "Extraction time: $extraction_runtime seconds" info
+		print_message "Extraction time: $extraction_runtime seconds" debug
 
 		# Build system.prop
-		print_message "Building system.prop..." info
-		./build_system_prop.sh "$dir"
+		print_message "Building props..." info
+		./build_props.sh "$dir"
 	fi
 done
