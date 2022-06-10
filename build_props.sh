@@ -253,7 +253,7 @@ device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$vendo
 add_prop_as_ini to_module_prop "id" "${device_code_name^}_Prop"
 add_prop_as_ini to_module_prop "name" "$device_name (${device_code_name^^}) Prop"
 add_prop_as_ini to_module_prop "version" "$device_build_security_patch"
-add_prop_as_ini to_module_prop "versionCode" "$(echo "$device_build_security_patch" | tr -d -)"
+add_prop_as_ini to_module_prop "versionCode" "$(echo "$device_build_security_patch" | tr -d - | cut -c3-)"
 add_prop_as_ini to_module_prop "autor" "Tesla"
 add_prop_as_ini to_module_prop "description" "Spoof your device to ${device_name^^} pixel prop ($(date --date="$device_build_security_patch" +%b) $(date --date="$device_build_security_patch" +%Y))"
 add_prop_as_ini to_module_prop "donate" "https://wannabe1337.page.link/4xK6"

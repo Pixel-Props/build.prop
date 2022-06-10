@@ -86,9 +86,9 @@ build_prop() {
     return 1
   fi
 
-  prop_path="$2"
-  prop_name="$3"
-  prop_value=$(grep_prop "$prop_name" "$prop_path")
+  local prop_path="$2"
+  local prop_name="$3"
+  local prop_value=$(grep_prop "$prop_name" "$prop_path")
 
   if [ -z "$prop_value" ]; then
     print_message "\"$prop_name\" not found in \"$prop_path\"" error
