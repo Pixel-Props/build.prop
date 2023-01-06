@@ -247,6 +247,7 @@ echo -n "${system_prop::-1}" >"$dir/extracted/system.prop"
 # Module Props
 ###
 device_name=$(grep_prop "ro.product.vendor.model" "$vendor_path")
+device_build_description=$(grep_prop "ro.build.description" "$system_path")
 device_code_name=$(grep_prop "ro.product.vendor.name" "$vendor_path")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$vendor_path")
 
@@ -254,13 +255,16 @@ add_prop_as_ini to_module_prop "id" "${device_code_name^}_Prop"
 add_prop_as_ini to_module_prop "name" "$device_name (${device_code_name^^}) Prop"
 add_prop_as_ini to_module_prop "version" "$device_build_security_patch"
 add_prop_as_ini to_module_prop "versionCode" "$(echo "$device_build_security_patch" | tr -d - | cut -c3-)"
-add_prop_as_ini to_module_prop "autor" "Tesla"
-add_prop_as_ini to_module_prop "description" "Spoof your device to ${device_name^^} pixel prop ($(date --date="$device_build_security_patch" +%b) $(date --date="$device_build_security_patch" +%Y))"
+add_prop_as_ini to_module_prop "author" "Tesla"
+add_prop_as_ini to_module_prop "description" "Spoof your device to ${device_code_name^^} pixel prop ($(date --date="$device_build_security_patch" +%b) $(date --date="$device_build_security_patch" +%Y))"
 add_prop_as_ini to_module_prop "donate" "https://wannabe1337.page.link/4xK6"
 add_prop_as_ini to_module_prop "support" "https://t.me/PixelProps"
 
 # Save the module.prop file
 echo -n "${module_prop::-1}" >"$dir/extracted/module.prop"
+
+# Display information about prop
+print_message "[$device_build_description] ($device_name) Prop" debug
 
 # Display saving location
 print_message "Saved to \"${dir}extracted/system.prop\"" info
