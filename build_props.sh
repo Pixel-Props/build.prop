@@ -267,5 +267,5 @@ echo -n "${module_prop::-1}" >"$dir/extracted/module.prop"
 print_message "[$device_build_description] ($device_name) Prop" debug
 
 # Display saving location
-print_message "Saved to \"${dir}extracted/system.prop\"" info
-print_message "Saved to \"${dir}extracted/module.prop\"" info
+print_message "Saved to \"${dir}/extracted/system.prop\"" info
+print_message "Saved to \"${dir}/extracted/module.prop\"" info
