@@ -1,36 +1,90 @@
 name: "gh-action"
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: "0 14 * * 1" # At 14:00 on Monday. (UTC)
+  workflow_dispatch: # Manual
     inputs:
-      rom_dl:
-        description: "Rom direct-link"
+      device_name:
+        description: "Device Name"
         required: true
+        default: "cheetah"
+        type: choice
+        options:
+          - cheetah
+          - panther
+          - bluejay
+          - oriole
+          - raven
+          - barbet
+          - redfin
+          - bramble
+          - sunfish
+          - coral
+          - flame
+          - bonito
+          - sargo
+          - crosshatch
+          - blueline
+          - taimen
+          - walleye
+          - sailfish
+          - ryu
+          - angler
+          - bullhead
+          - hammerhead
+          - shamu
+          - razor
+          - razorg
+          - volantisg
+          - volantis
+          - fugu
 
 jobs:
-  actions:
+  onSchedule:
+    if: github.event_name == 'schedule'
+    name: On Schedule
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Schedule
+        # TODO: ?
+        run: |
+          ls -R
+
+  onDispatch:
+    if: github.event_name == 'workflow_dispatch'
+    name: On Dispatch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
-      - name: Install dos2unix
+
+      - name: Install dos2unix python3 python3-pip
         uses: daaku/gh-action-apt-install@v4
         with:
-          packages: dos2unix
-      - name: Get Rom
-        run: wget -q ${{ github.event.inputs.rom_dl }}
-      - name: Get imjtool
-        run: wget --tries=inf -q -O "imjtool" "http://newandroidbook.com/tools/imjtool"
+          packages: dos2unix python3 python3-pip
+
+      - name: Install protobuf
+        run: pip3 install -Iv protobuf==3.20.3
+
+      - name: Make executable all script
+        run: chmod +x *.sh
+
+      - name: Download last ota ${{ github.event.inputs.device_name }}
+        run: ./download_last_ota_build.sh ${{ github.event.inputs.device_name }}
+
       - name: Extract Image and build prop
-        run: chmod +x *.sh && ./extract_images.sh
+        run: ./extract_images.sh
+
       - name: Copy prop to result
         run: |
           mkdir -p result
-          cp ./**/extracted/module.prop result/
-          cp ./**/extracted/system.prop result/
+          find . -type f -regex ".*/**/.*prop" -exec cp {} result/ \;
+
       - name: Upload Prop
         uses: actions/upload-artifact@v3
         with:
-          name: system-module.prop
+          name: system-module-${{ github.event.inputs.device_name }}.prop
           path: result
           if-no-files-found: error

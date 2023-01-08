@@ -109,12 +109,12 @@ extract_image() {
     return 1
   fi
 
-  if [ -f "$dir/$2.img" ]; then
-    print_message "Extracting \"${dir##*/}/$2.img\"" debug
+  if [ -f "$1/$2.img" ]; then
+    print_message "Extracting \"${1##*/}/$2.img\"" debug
 
+    7z x "$1/$2.img" -o"$1/extracted/$2" -y &>/dev/null
     # ImjTool not required since of A13?
     # ./imjtool "$1/$2.img" extract &>/dev/null
-    7z x "$1/$2.img" -o"$1/extracted/$2" -y &>/dev/null
     # rm -rf extracted
   fi
 }
