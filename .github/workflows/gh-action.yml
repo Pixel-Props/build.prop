@@ -1,0 +1,36 @@
+name: "gh-action"
+
+on:
+  workflow_dispatch:
+    inputs:
+      rom_dl:
+        description: "Rom direct-link"
+        required: true
+
+jobs:
+  actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: Install dos2unix
+        uses: daaku/gh-action-apt-install@v4
+        with:
+          packages: dos2unix
+      - name: Get Rom
+        run: wget -q ${{ github.event.inputs.rom_dl }}
+      - name: Get imjtool
+        run: wget --tries=inf -q -O "imjtool" "http://newandroidbook.com/tools/imjtool"
+      - name: Extract Image and build prop
+        run: chmod +x *.sh && ./extract_images.sh
+      - name: Copy prop to result
+        run: |
+          mkdir -p result
+          cp ./**/extracted/module.prop result/
+          cp ./**/extracted/system.prop result/
+      - name: Upload Prop
+        uses: actions/upload-artifact@v3
+        with:
+          name: system-module.prop
+          path: result
+          if-no-files-found: error
