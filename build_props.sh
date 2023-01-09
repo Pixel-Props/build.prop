@@ -241,7 +241,7 @@ to_system_prop "# end common build properties
 ###"
 
 # Save the system.prop file
-echo -n "${system_prop::-1}" >"$dir/extracted/system.prop"
+echo -n "${system_prop::-1}" >"$dir/system.prop"
 
 ###
 # Module Props
@@ -261,11 +261,11 @@ add_prop_as_ini to_module_prop "donate" "https://wannabe1337.page.link/4xK6"
 add_prop_as_ini to_module_prop "support" "https://t.me/PixelProps"
 
 # Save the module.prop file
-echo -n "${module_prop::-1}" >"$dir/extracted/module.prop"
+echo -n "${module_prop::-1}" >"$dir/module.prop"
 
 # Display information about prop
 print_message "[$device_build_description] ($device_name) Prop" debug
 
 # Display saving location
-print_message "Saved to \"${dir}/extracted/system.prop\"" info
-print_message "Saved to \"${dir}/extracted/module.prop\"" info
+print_message "Saved to \"${dir}/system.prop\"" info
+print_message "Saved to \"${dir}/module.prop\"" info
