@@ -2,7 +2,7 @@ name: "gh-action-on-schedule"
 
 on:
   schedule:
-    - cron: "0 14 * * 1" # At 14:00 on Monday. (UTC)
+    - cron: "37 13 7 * *" # At 13:37 on day-of-month 7. (UTC)
 
 jobs:
   onSchedule:
