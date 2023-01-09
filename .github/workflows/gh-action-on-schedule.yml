@@ -1,0 +1,52 @@
+name: "gh-action-on-schedule"
+
+on:
+  schedule:
+    - cron: "0 14 * * 1" # At 14:00 on Monday. (UTC)
+
+jobs:
+  onSchedule:
+    name: On Schedule
+    strategy:
+      matrix:
+        device_name: [cheetah, raven, redfin]
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Install dos2unix python3 python3-pip
+        uses: daaku/gh-action-apt-install@v4
+        with:
+          packages: dos2unix python3 python3-pip
+
+      - name: Install protobuf
+        run: |
+          pip install --upgrade pip
+          pip3 install -Iv protobuf==3.20.3
+
+      - name: Make executable all script
+        run: chmod +x *.sh
+
+      - name: Download last ota ${{ matrix.device_name }}
+        run: ./download_last_ota_build.sh ${{ matrix.device_name }}
+
+      - name: Extract Image and build prop ${{ matrix.device_name }}
+        run: ./extract_images.sh
+
+      - name: Copy prop to result ${{ matrix.device_name }}
+        run: |
+          mkdir -p result
+          cp ./**/**/{system,module}.prop  result/
+
+      - name: Upload Prop ${{ matrix.device_name }}
+        # TODO: This step is temporary
+        # check device prop repo
+        # make update/release that repo
+        # using action `softprops/action-gh-release`.
+        uses: actions/upload-artifact@v3
+        with:
+          name: system-module-${{ matrix.device_name }}.prop
+          path: result
+          if-no-files-found: error

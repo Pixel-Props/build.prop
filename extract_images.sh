@@ -25,7 +25,7 @@ for file in ./*; do                    # List directory ./*
 			fi
 
 			# We dont need the archive anymore
-			#rm "$file"
+			rm "$file"
 
 			# Time the extraction
 			extraction_end=$(date +%s)
@@ -83,9 +83,10 @@ for dir in ./extracted_images/*; do # List directory ./*
 		# Time the extraction
 		extraction_start=$(date +%s)
 
-		# Extracting each needed image
+		# Extract all and clean
 		for image_name in "${IMAGES2EXTRACT[@]}"; do
 			extract_image "$dir" "$image_name"
+			rm "$dir/$image_name.img"
 		done
 
 		# Time the extraction
