@@ -67,7 +67,6 @@ jobs:
         run: |
           mkdir -p result
 
-          source ./.TEMP_BUILD_INFO
           BASE_NAME=${{ steps.extract_and_build.outputs.DEVICE_CODE_NAME_TITLE }}.A${{ steps.extract_and_build.outputs.DEVICE_BUILD_ANDROID_VERSION }}.$(echo ${{ steps.extract_and_build.outputs.DEVICE_BUILD_SECURITY_PATCH }} | sed 's/-//g')
 
           cp ./**/**/{system,module}.prop result/
