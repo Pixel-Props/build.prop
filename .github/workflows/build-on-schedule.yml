@@ -1,6 +1,7 @@
 name: Build props (on schedule)
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "37 13 7 * *" # At 13:37 on day-of-month 7. (UTC)
 
@@ -34,7 +35,7 @@ jobs:
     strategy:
       matrix:
         # Devices to build props for
-        device_name: [cheetah, raven, redfin]
+        device_name: [cheetah]
 
     runs-on: ubuntu-latest
     steps:
