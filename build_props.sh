@@ -265,7 +265,7 @@ add_prop_as_ini to_module_prop "support" "https://t.me/PixelProps"
 echo -n "${module_prop::-1}" >"$dir/module.prop"
 
 # Display information about prop
-print_message "[$device_build_description] ($device_name) Prop" debug
+print_message "Built props for $device_name [$device_build_description]!" debug
 
 # Display saving location
 print_message "Saved to \"${dir}/system.prop\"" info
