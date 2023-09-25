@@ -249,6 +249,7 @@ echo -n "${system_prop::-1}" >"$dir/system.prop"
 device_name=$(grep_prop "ro.product.vendor.model" "$vendor_path")
 device_build_description=$(grep_prop "ro.build.description" "$system_path")
 device_code_name=$(grep_prop "ro.product.vendor.name" "$vendor_path")
+device_android_version=$(grep_prop "ro.vendor.build.version.release" "$vendor_path")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$vendor_path")
 
 add_prop_as_ini to_module_prop "id" "${device_code_name^}_Prop"
@@ -269,3 +270,12 @@ print_message "[$device_build_description] ($device_name) Prop" debug
 # Display saving location
 print_message "Saved to \"${dir}/system.prop\"" info
 print_message "Saved to \"${dir}/module.prop\"" info
+
+# Save additional information
+print_message "Saving additional information..." info
+echo "DEVICE_NAME=$device_name" > ".TEMP_BUILD_INFO"
+echo "DEVICE_BUILD_DESCRIPTION=$device_build_description" >> ".TEMP_BUILD_INFO"
+echo "DEVICE_CODE_NAME=$device_code_name" >> ".TEMP_BUILD_INFO"
+echo "DEVICE_CODE_NAME_TITLE=${device_code_name^}" >> ".TEMP_BUILD_INFO"
+echo "DEVICE_BUILD_ANDROID_VERSION=$device_android_version" >> ".TEMP_BUILD_INFO"
+echo "DEVICE_BUILD_SECURITY_PATCH=$device_build_security_patch" >> ".TEMP_BUILD_INFO"
