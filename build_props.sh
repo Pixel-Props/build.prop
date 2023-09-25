@@ -271,12 +271,11 @@ print_message "Built props for $device_name [$device_build_description]!" debug
 print_message "Saved to \"${dir}/system.prop\"" info
 print_message "Saved to \"${dir}/module.prop\"" info
 
-# Save additional information
-echo "DEVICE_NAME=$device_name" > .TEMP_BUILD_INFO
-echo "DEVICE_BUILD_DESCRIPTION=$device_build_description" >> .TEMP_BUILD_INFO
-echo "DEVICE_CODE_NAME=$device_code_name" >> .TEMP_BUILD_INFO
-echo "DEVICE_CODE_NAME_TITLE=${device_code_name^}" >> .TEMP_BUILD_INFO
-echo "DEVICE_BUILD_ANDROID_VERSION=$device_android_version" >> .TEMP_BUILD_INFO
-echo "DEVICE_BUILD_SECURITY_PATCH=$device_build_security_patch" >> .TEMP_BUILD_INFO
-
-print_message "Saved additional information to \".TEMP_BUILD_INFO\"" info
+if ! [ -z $GITHUB_OUTPUT ]; then
+	echo "DEVICE_NAME=$device_name" >> $GITHUB_OUTPUT
+	echo "DEVICE_BUILD_DESCRIPTION=$device_build_description" >> $GITHUB_OUTPUT
+	echo "DEVICE_CODE_NAME=$device_code_name" >> $GITHUB_OUTPUT
+	echo "DEVICE_CODE_NAME_TITLE=${device_code_name^}" >> $GITHUB_OUTPUT
+	echo "DEVICE_BUILD_ANDROID_VERSION=$device_android_version" >> $GITHUB_OUTPUT
+	echo "DEVICE_BUILD_SECURITY_PATCH=$device_build_security_patch" >> $GITHUB_OUTPUT
+fi
