@@ -5,6 +5,12 @@ declare IMAGES2EXTRACT=("product" "vendor" "system" "system_ext")
 
 [[ $(type -t "print_message") != function ]] && . ./util_functions.sh
 
+# Make sure zip is installed
+if ! hash zip 2>/dev/null; then
+    print_message "zip was not found, you can run \"apt install zip\" in order to install it." error
+	exit
+fi
+
 # Make sure 7z is installed
 if ! hash 7z 2>/dev/null; then
 	print_message "7z was not found, you can run \"apt install p7zip-full\" in order to install it." error
