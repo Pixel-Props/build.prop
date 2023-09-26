@@ -64,7 +64,7 @@ jobs:
       - name: Download latest OTA build for ${{ github.event.inputs.device_name }}
         run: ./download_latest_ota_build.sh ${{ github.event.inputs.device_name }}
 
-      - name: Extract images and build props
+      - name: Extract images and build
         id: extract_and_build
         run: ./extract_images.sh
 

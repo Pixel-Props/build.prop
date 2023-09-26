@@ -31,6 +31,7 @@ mkdir -p result
 base_name=$device_code_name_title.A$device_build_android_version.$(echo $device_build_security_patch | sed 's/-//g')
 subdir=$(basename $dir)
 
+mkdir -p result/$subdir
 cp $dir/{module,system}.prop result/$subdir/
 cp ./magisk_module_files/* result/$subdir/
 
