@@ -22,7 +22,7 @@ system_path="$dir/extracted/system/system/build.prop"
 
 device_build_description=$(grep_prop "ro.build.description" "$system_path")
 device_code_name=$(grep_prop "ro.product.vendor.name" "$vendor_path")
-device_code_name_title=$($device_code_name^)
+device_code_name_title=${device_code_name^}
 device_build_android_version=$(grep_prop "ro.vendor.build.version.release" "$vendor_path")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$vendor_path")
 
@@ -33,7 +33,7 @@ subdir=$(basename $dir)
 
 mkdir -p result/$subdir
 cp $dir/{module,system}.prop result/$subdir/
-cp ./magisk_module_files/* result/$subdir/
+cp -r ./magisk_module_files/* result/$subdir/
 
 cd result/$subdir
 zip -r ../../$base_name.zip .
