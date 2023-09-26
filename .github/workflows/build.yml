@@ -78,7 +78,9 @@ jobs:
           cp ./**/**/{system,module}.prop result/
           cp ./magisk_module_files/* result/
 
-          zip $BASE_NAME.zip ./result/*
+          cd result
+          zip -r ../$BASE_NAME.zip .
+          cd ..
 
           echo "base_name=$BASE_NAME" >> $GITHUB_OUTPUT
 
