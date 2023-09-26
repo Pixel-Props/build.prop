@@ -11,7 +11,7 @@ for file in ./*; do                    # List directory ./*
 			filename="${file##*/}"              # Remove the path
 			basename="${filename%.*}"           # Remove the extension
 			devicename="${basename%%-*}"        # Remove the extension
-			print_message "Processing \"$filename\"" debug
+			print_message "Processing \"$filename\"..." debug
 
 			# Time the extraction
 			extraction_start=$(date +%s)
@@ -38,14 +38,14 @@ for file in ./*; do                    # List directory ./*
 done
 
 if [ -d "extracted_archive_images" ]; then
-	print_message "\nExtracting/Dumping images from \"extracted_archive_images\"..." info
+	print_message "\nDumping images from \"extracted_archive_images\"..." info
 
 	for file in ./extracted_archive_images/*; do                          # List directory ./extracted_archive_images/*
 		if [ -f "$file" ]; then                                              # Check if it is a file
 			if [ "${file: -4}" == ".zip" ] || [ "${file: -4}" == ".bin" ]; then # Check if it is a zip or bin file
 				filename="${file##*/}"                                             # Remove the path
 				basename="${filename%.*}"                                          # Remove the extension
-				print_message "Processing \"$filename\"" debug
+				print_message "Processing \"$filename\"..." debug
 
 				# Time the extraction
 				extraction_start=$(date +%s)
@@ -74,11 +74,11 @@ if [ -d "extracted_archive_images" ]; then
 fi
 
 # Extract the images directories
-print_message "\nExtracting images and directories..." info
+print_message "\nExtracting images..." info
 for dir in ./extracted_images/*; do # List directory ./*
 	if [ -d "$dir" ]; then             # Check if it is a directory
 		dir=${dir%*/}                     # Remove last /
-		print_message "Processing \"${dir##*/}\"" debug
+		print_message "Processing \"${dir##*/}\"..." debug
 
 		# Time the extraction
 		extraction_start=$(date +%s)
@@ -97,7 +97,7 @@ for dir in ./extracted_images/*; do # List directory ./*
 		print_message "Extraction time: $extraction_runtime seconds" debug
 
 		# Build system.prop
-		print_message "Building props..." info
+		print_message "\nBuilding props..." info
 		./build_props.sh "$dir"
 	fi
 done

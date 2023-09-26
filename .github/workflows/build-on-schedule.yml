@@ -1,0 +1,87 @@
+name: Build props (on schedule)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 13 7 * *" # At 13:37 on day-of-month 7. (UTC)
+
+jobs:
+  prepare_build:
+    name: Create release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Determine tag name
+        id: get_tag_name
+        run: |
+          echo "tag_name=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "friendly_tag_name=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Create a release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_tag_name.outputs.tag_name }}
+          release_name: ${{ steps.get_tag_name.outputs.friendly_tag_name }}
+          draft: false
+          prerelease: false
+
+  build:
+    name: Build props
+    needs: prepare_build
+    strategy:
+      matrix:
+        # Devices to build props for
+        device_name: [cheetah]
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install APT packages
+        uses: daaku/gh-action-apt-install@v4
+        with:
+          packages: dos2unix python3 python3-pip zip
+
+      - name: Install protobuf
+        run: |
+          pip install --upgrade pip
+          pip3 install -Iv protobuf==3.20.3
+
+      - name: Make all scripts executable
+        run: chmod +x *.sh
+
+      - name: Download latest OTA build for ${{ matrix.device_name }}
+        run: ./download_latest_ota_build.sh ${{ matrix.device_name }}
+
+      - name: Extract images and build props
+        id: extract_and_build
+        run: ./extract_images.sh
+
+      - name: Prepare for upload
+        id: prepare
+        run: |
+          mkdir -p result
+
+          BASE_NAME=${{ steps.extract_and_build.outputs.DEVICE_CODE_NAME_TITLE }}.A${{ steps.extract_and_build.outputs.DEVICE_BUILD_ANDROID_VERSION }}.$(echo ${{ steps.extract_and_build.outputs.DEVICE_BUILD_SECURITY_PATCH }} | sed 's/-//g')
+
+          cp ./**/**/{system,module}.prop result/
+          cp ./magisk_module_files/* result/
+
+          zip $BASE_NAME.zip ./result/*
+
+          echo "base_name=$BASE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload files to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.prepare_build.outputs.upload_url }}
+          asset_path: ./${{ steps.prepare.outputs.base_name }}.zip
+          asset_name: ${{ steps.prepare.outputs.base_name }}.zip
+          asset_content_type: application/zip
