@@ -58,25 +58,9 @@ jobs:
       - name: Download latest OTA build for ${{ matrix.device_name }}
         run: ./download_latest_ota_build.sh ${{ matrix.device_name }}
 
-      - name: Extract images and build props
+      - name: Extract images and build
         id: extract_and_build
         run: ./extract_images.sh
-
-      - name: Prepare for upload
-        id: prepare
-        run: |
-          mkdir -p result
-
-          BASE_NAME=${{ steps.extract_and_build.outputs.DEVICE_CODE_NAME_TITLE }}.A${{ steps.extract_and_build.outputs.DEVICE_BUILD_ANDROID_VERSION }}.$(echo ${{ steps.extract_and_build.outputs.DEVICE_BUILD_SECURITY_PATCH }} | sed 's/-//g')
-
-          cp ./**/**/{system,module}.prop result/
-          cp -r ./magisk_module_files/* result/
-
-          cd result
-          zip -r ../$BASE_NAME.zip .
-          cd ..
-
-          echo "base_name=$BASE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload files to release
         uses: actions/upload-release-asset@v1
@@ -84,6 +68,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.prepare_build.outputs.upload_url }}
-          asset_path: ./${{ steps.prepare.outputs.base_name }}.zip
-          asset_name: ${{ steps.prepare.outputs.base_name }}.zip
+          asset_path: ./${{ steps.extract_and_build.outputs.module_base_name }}.zip
+          asset_name: ${{ steps.extract_and_build.outputs.module_base_name }}.zip
           asset_content_type: application/zip

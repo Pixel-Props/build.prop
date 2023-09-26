@@ -249,7 +249,6 @@ echo -n "${system_prop::-1}" >"$dir/system.prop"
 device_name=$(grep_prop "ro.product.vendor.model" "$vendor_path")
 device_build_description=$(grep_prop "ro.build.description" "$system_path")
 device_code_name=$(grep_prop "ro.product.vendor.name" "$vendor_path")
-device_android_version=$(grep_prop "ro.vendor.build.version.release" "$vendor_path")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$vendor_path")
 
 add_prop_as_ini to_module_prop "id" "${device_code_name^}_Prop"
@@ -268,14 +267,8 @@ echo -n "${module_prop::-1}" >"$dir/module.prop"
 print_message "Built props for $device_name [$device_build_description]!" debug
 
 # Display saving location
-print_message "Saved to \"${dir}/system.prop\"" info
-print_message "Saved to \"${dir}/module.prop\"" info
+print_message "Props saved to \"${dir}\"" info
 
-if ! [ -z $GITHUB_OUTPUT ]; then
-	echo "DEVICE_NAME=$device_name" >> $GITHUB_OUTPUT
-	echo "DEVICE_BUILD_DESCRIPTION=$device_build_description" >> $GITHUB_OUTPUT
-	echo "DEVICE_CODE_NAME=$device_code_name" >> $GITHUB_OUTPUT
-	echo "DEVICE_CODE_NAME_TITLE=${device_code_name^}" >> $GITHUB_OUTPUT
-	echo "DEVICE_BUILD_ANDROID_VERSION=$device_android_version" >> $GITHUB_OUTPUT
-	echo "DEVICE_BUILD_SECURITY_PATCH=$device_build_security_patch" >> $GITHUB_OUTPUT
-fi
+# Build Magisk module
+print_message "\nBuilding Magisk module...\n" info
+./build_magisk_module.sh "$dir"
