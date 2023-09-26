@@ -76,9 +76,11 @@ jobs:
           BASE_NAME=${{ steps.extract_and_build.outputs.DEVICE_CODE_NAME_TITLE }}.A${{ steps.extract_and_build.outputs.DEVICE_BUILD_ANDROID_VERSION }}.$(echo ${{ steps.extract_and_build.outputs.DEVICE_BUILD_SECURITY_PATCH }} | sed 's/-//g')
 
           cp ./**/**/{system,module}.prop result/
-          cp ./magisk_module_files/* result/
+          cp -r ./magisk_module_files/* result/
 
-          zip $BASE_NAME.zip ./result/*
+          cd result
+          zip -r ../$BASE_NAME.zip .
+          cd ..
 
           echo "base_name=$BASE_NAME" >> $GITHUB_OUTPUT
 
