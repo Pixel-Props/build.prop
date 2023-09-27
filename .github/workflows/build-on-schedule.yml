@@ -93,8 +93,8 @@ jobs:
         run: |
           {
             echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_code_name_title }}';
-            echo 'Security Patch: ${{ steps.extract_and_build.outputs.device_build_security_patch }}';
-            echo 'ID: ${{ steps.extract_and_build.outputs.device_build_id }}';
+            echo 'Security Patch: `${{ steps.extract_and_build.outputs.device_build_security_patch }}`';
+            echo 'ID: `${{ steps.extract_and_build.outputs.device_build_id }}`';
           } > .tg_caption
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \
