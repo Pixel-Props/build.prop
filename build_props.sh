@@ -4,7 +4,7 @@
 [ -f "util_functions.sh" ] && . ./util_functions.sh || { echo "util_functions.sh not found" && exit 1; }
 
 # Build props from script base path if no directory were specified
-[ ! -z $1 ] && dir=$1 || {
+[ -n "$1" ] && dir=$1 || {
 	for dir in ./*; do      # List directory ./*
 		if [ -d "$dir" ]; then # Check if it is a directory
 			dir=${dir%*/}         # Remove last /
