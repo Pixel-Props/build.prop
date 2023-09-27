@@ -33,7 +33,8 @@ base_name=$device_code_name_title.A$device_build_android_version.$(echo "$device
 subdir=$(basename "$dir")
 
 mkdir -p "result/$subdir"
-cp "$dir/{module,system}.prop" "result/$subdir/"
+ls -la $dir
+cp $dir/{module,system}.prop "result/$subdir/"
 cp -r ./magisk_module_files/* "result/$subdir/"
 
 cd "result/$subdir" || exit 1
