@@ -89,7 +89,7 @@ jobs:
             - Android version: `${{ steps.extract_and_build.outputs.device_build_android_version }}`
             - Security patch: `${{ steps.extract_and_build.outputs.device_build_security_patch }}`
 
-      - name: send telegram message on push
+      - name: Send to Telegram
         uses: appleboy/telegram-action@v0.1.1
         with:
           to: ${{ secrets.CHANNEL_ID }}
