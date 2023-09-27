@@ -90,12 +90,15 @@ jobs:
             - Security patch: `${{ steps.extract_and_build.outputs.device_build_security_patch }}`
 
       - name: Send to Telegram
-        uses: appleboy/telegram-action@v0.1.1
-        with:
-          to: ${{ secrets.CHANNEL_ID }}
-          token: ${{ secrets.BOT_TOKEN }}
-          document: ${{ github.workspace }}/${{ steps.extract_and_build.outputs.module_base_name }}.zip
-          message: |
-            ${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_code_name_title }}
-            Security Patch: ${{ steps.extract_and_build.outputs.device_build_security_patch }}
-            ID: ${{ steps.extract_and_build.outputs.device_build_id }}
+        run: |
+          {
+            echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_code_name_title }}';
+            echo 'Security Patch: ${{ steps.extract_and_build.outputs.device_build_security_patch }}';
+            echo 'ID: ${{ steps.extract_and_build.outputs.device_build_id }}';
+          } > .tg_caption
+
+          curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \
+          -H "Content-Type: multipart/form-data" \
+          -F "chat_id=${{ secrets.CHANNEL_ID }}" \
+          -F "document=@${{ steps.extract_and_build.outputs.module_base_name }}.zip;type=application/zip" \
+          -F "caption=$(cat .tg_caption)"
