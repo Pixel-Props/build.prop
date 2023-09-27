@@ -7,7 +7,7 @@ declare IMAGES2EXTRACT=("product" "vendor" "system" "system_ext")
 
 # Make sure zip is installed
 if ! hash zip 2>/dev/null; then
-    print_message "zip was not found, you can run \"apt install zip\" in order to install it." error
+	print_message "zip was not found, you can run \"apt install zip\" in order to install it." error
 	exit
 fi
 
