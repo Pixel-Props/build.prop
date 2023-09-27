@@ -44,4 +44,4 @@ for i in $(find "$MODPATH" -type f -name "*.sh" -o -name "*.prop" -o -name "*.ru
 done
 
 # Print footer message
-ui_print "-  Script by Tesla, Telegram: @T3SL4"
+ui_print "- Script by Tesla, Telegram: @T3SL4"
