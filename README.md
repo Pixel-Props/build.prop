@@ -21,7 +21,7 @@ $ ./download_latest_ota_build.sh cheetah raven redfin
 - [x] Build props
 - [x] Use of GitHub Actions to automate the update/commit/push/release process on schedule
   - [ ] Previous release checker (to check for duplicates, via git notes)
-- [ ] Use of GitHub Actions to automate the release of props on the Telegram Channel
+- [x] Use of GitHub Actions to automate the release of props on the Telegram Channel
 - [ ] ~~Download latest factory image from [Google Android Images](https://developers.google.com/android/images)~~
 
 You can also help me finish those todo's by forking this repository, modifying the script and pushing a pull request.
