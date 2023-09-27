@@ -83,9 +83,8 @@ jobs:
             ## ${{ steps.extract_and_build.outputs.device_name }} (${{ steps.extract_and_build.outputs.device_code_name_title }})
             #### Module
             - File name: `${{ steps.extract_and_build.outputs.module_base_name }}.zip`
-            - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`)
+            - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`
             #### Firmware
             - Build ID: `${{ steps.extract_and_build.outputs.device_build_id }}`
             - Android version: `${{ steps.extract_and_build.outputs.device_build_android_version }}`
             - Security patch: `${{ steps.extract_and_build.outputs.device_build_security_patch }}`
-
