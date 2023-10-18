@@ -6,11 +6,13 @@ on:
       device_name:
         description: "Device Name"
         required: true
-        default: "cheetah"
+        default: "husky"
         type: choice
         # TODO: this options choice is all current google ota device
         # but... not all work idk. rn. ;(
         options:
+          - husky
+          - shiba
           - cheetah
           - panther
           - bluejay
