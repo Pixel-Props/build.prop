@@ -73,6 +73,6 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ steps.extract_and_build.outputs.module_base_name }}.zip
-          path: result
+          name: ${{ steps.extract_and_build.outputs.module_base_name }}
+          path: ./${{ steps.extract_and_build.outputs.module_base_name }}.zip
           if-no-files-found: error
