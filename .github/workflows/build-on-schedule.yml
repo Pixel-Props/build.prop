@@ -36,7 +36,7 @@ jobs:
     strategy:
       matrix:
         # Devices to build props for
-        device_name: [cheetah, raven, redfin]
+        device_name: [husky, shiba, cheetah, raven, redfin]
 
     runs-on: ubuntu-latest
     steps:
