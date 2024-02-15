@@ -14,7 +14,7 @@ $ ./download_latest_ota_build.sh husky felix_beta cheetah
 
 
 ## To-do
-### I would appreciate your attention and assistance in accomplishing my to-do goals. (Fork->Commit->)
+### I would appreciate your attention and assistance in accomplishing my to-do goals.
 - [x] Downloads latest OTA Image from [Google Full OTA Images](https://developers.google.cn/android/ota) and [Google Beta OTA Images](https://developer.android.com/about/versions/14/download-ota).
 - [x] Check for dependencies
 - [x] Extract factory images
