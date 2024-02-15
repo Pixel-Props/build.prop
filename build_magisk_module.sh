@@ -19,14 +19,13 @@
 
 # Extract device information
 result_base_name=$(basename "$dir")
-vendor_path="$dir/extracted/vendor/build.prop"
-system_path="$dir/extracted/system/system/build.prop"
+system_prop_path="$dir/system.prop"
 
-device_name=$(grep_prop "ro.product.model" "$system_path")
-device_build_id=$(grep_prop "ro.build.id" "$system_path")
-device_code_name=$(grep_prop "ro.product.vendor.name" "$vendor_path")
-device_build_android_version=$(grep_prop "ro.vendor.build.version.release" "$vendor_path")
-device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$vendor_path")
+device_name=$(grep_prop "ro.product.model" "$system_prop_path")
+device_build_id=$(grep_prop "ro.build.id" "$system_prop_path")
+device_code_name=$(grep_prop "ro.product.vendor.name" "$system_prop_path")
+device_build_android_version=$(grep_prop "ro.vendor.build.version.release" "$system_prop_path")
+device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$system_prop_path")
 device_code_name_title=${device_code_name^}
 
 # Construct the base name
