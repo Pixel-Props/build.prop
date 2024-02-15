@@ -6,7 +6,8 @@ declare IMAGES2EXTRACT=("product" "vendor" "system" "system_ext")
 [[ $(type -t "print_message") != function ]] && . ./util_functions.sh
 
 # Install required packages and libs
-install_packages "wget" "zip" "p7zip" "dos2unix" "python" "python-pip"
+install_packages "wget" "zip" "p7zip" "dos2unix"
+[ -x "$(command -v termux-setup-storage)" ] && install_packages "python" "python-pip" || install_packages "python3" "python3-pip"
 install_pip_packages "protobuf==3.6.0"
 
 # Make sure protobuf 3.x is installed on python3-pip

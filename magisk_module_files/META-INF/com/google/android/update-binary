@@ -16,6 +16,14 @@ require_new_magisk() {
   exit 1
 }
 
+grep_prop() {
+  REGEX="s/^$1=//p"
+  shift
+  FILES=$@
+  [ -z "$FILES" ] && FILES='/system/build.prop'
+  cat $FILES 2>/dev/null | dos2unix | sed -n "$REGEX" | head -n 1
+}
+
 #########################
 # Load util_functions.sh
 #########################
@@ -23,11 +31,17 @@ require_new_magisk() {
 OUTFD=$2
 ZIPFILE=$3
 
-mount /data 2>/dev/null
-
 [ -f /data/adb/magisk/util_functions.sh ] || require_new_magisk
 . /data/adb/magisk/util_functions.sh
 [ $MAGISK_VER_CODE -lt 20400 ] && require_new_magisk
+
+# Remove comments from files and place them, add blank line to end if not already present
+for i in $(find "$MODPATH" -type f -name "*.sh" -o -name "*.prop" -o -name "*.rule"); do
+  [ -f "$i" ] && {
+    sed -i -e "/^#/d" -e "/^ *$/d" "$i"
+    [ "$(tail -1 "$i")" ] && echo "" >>"$i"
+  } || continue
+done
 
 install_module
 exit 0

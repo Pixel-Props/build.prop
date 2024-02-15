@@ -20,65 +20,65 @@ print_message() {
 
 # Function to find and install packages by name using apt or pkg
 install_packages() {
-    local package_names=("$@")
+  local package_names=("$@")
 
-    local package_manager=""
+  local package_manager=""
 
-    # Check if apt is available
-    if hash apt 2>/dev/null; then
-        package_manager="apt"
-    # Check if pkg is available
-    elif hash pkg 2>/dev/null; then
-        package_manager="pkg"
-    else
-        print_message "Error: Neither apt nor pkg is available on this system." error
-        exit 1
+  # Check if apt is available
+  if hash apt 2>/dev/null; then
+    package_manager="apt"
+  # Check if pkg is available
+  elif hash pkg 2>/dev/null; then
+    package_manager="pkg"
+  else
+    print_message "Error: Neither apt nor pkg is available on this system." error
+    exit 1
+  fi
+
+  # Update package list
+  $package_manager update >/dev/null 2>&1
+
+  for package in "${package_names[@]}"; do
+    # Check if the package is installed
+    local is_installed
+    if [ "$package_manager" = "apt" ]; then
+      is_installed=$(dpkg-query -W --showformat='${Status}\n' "$package" 2>/dev/null | grep -c "install ok installed")
+    elif [ "$package_manager" = "pkg" ]; then
+      is_installed=$(pkg list-installed | grep -c "^$package\$" 2>/dev/null)
     fi
 
-    # Update package list
-    $package_manager update >/dev/null 2>&1
-
-    for package in "${package_names[@]}"; do
-        # Check if the package is installed
-        local is_installed
-        if [ "$package_manager" = "apt" ]; then
-            is_installed=$(dpkg-query -W --showformat='${Status}\n' "$package" 2>/dev/null | grep -c "install ok installed")
-        elif [ "$package_manager" = "pkg" ]; then
-            is_installed=$(pkg list-installed | grep -c "^$package\$" 2>/dev/null)
-        fi
-
-        # Proceed with installation or print message
-        if [ "$is_installed" -eq 0 ]; then
-            print_message "Installing $package..." info
-            $package_manager install "$package" >/dev/null 2>&1
-        fi
-    done
+    # Proceed with installation or print message
+    if [ "$is_installed" -eq 0 ]; then
+      print_message "Installing $package..." info
+      $package_manager install "$package" >/dev/null 2>&1
+    fi
+  done
 }
 
 # Function to find and install Python packages using pip3
 install_pip_packages() {
-    local pip_packages=("$@")
+  local pip_packages=("$@")
 
-    # Check if python3-pip is available
-    if hash pip3 2>/dev/null; then
-        for package_with_version in "${pip_packages[@]}"; do
-            # Extract package name and version from input
-            local package=$(echo "$package_with_version" | cut -d'=' -f1)
-            local version=$(echo "$package_with_version" | cut -d'=' -f3)
+  # Check if python3-pip is available
+  if hash pip3 2>/dev/null; then
+    for package_with_version in "${pip_packages[@]}"; do
+      # Extract package name and version from input
+      local package=$(echo "$package_with_version" | cut -d'=' -f1)
+      local version=$(echo "$package_with_version" | cut -d'=' -f3)
 
-            # Check if the Python package is already installed using pip show
-            local is_installed=$(pip3 show "$package" | grep -E "^(Name:|Version:) $package$|^Version: $version$")
+      # Check if the Python package is already installed using pip show
+      local is_installed=$(pip3 show "$package" | grep -E "^(Name:|Version:) $package$|^Version: $version$")
 
-            # Proceed with installation or print message
-            if [ -z "$is_installed" ]; then
-                print_message "Installing $package_with_version using pip3..." info
-                pip3 install --ignore-installed --upgrade --force-reinstall "$package_with_version" >/dev/null 2>&1
-            fi
-        done
-    else
-        print_message "Error: pip3 is not available. You can install it by running 'apt install python3-pip'." error
-        exit 1
-    fi
+      # Proceed with installation or print message
+      if [ -z "$is_installed" ]; then
+        print_message "Installing $package_with_version using pip3..." info
+        pip3 install --ignore-installed --upgrade --force-reinstall "$package_with_version" >/dev/null 2>&1
+      fi
+    done
+  else
+    print_message "Error: pip3 is not available. You can install it by running 'apt install python3-pip'." error
+    exit 1
+  fi
 }
 
 grep_prop() {

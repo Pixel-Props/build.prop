@@ -5,9 +5,9 @@
 
 # Load data from script base path if no directory were specified
 [ -n "$1" ] && dir=$1 || {
-	for dir in ./*; do      # List directory ./*
-		if [ -d "$dir" ]; then # Check if it is a directory
-			dir=${dir%*/}         # Remove last /
+	for dir in ./extracted_images/*; do # List directory ./*
+		if [ -d "$dir" ]; then             # Check if it is a directory
+			dir=${dir%*/}                     # Remove last /
 			print_message "Processing \"${dir##*/}\"" debug
 
 			# Build system.prop
@@ -17,42 +17,41 @@
 	exit 1
 }
 
+# Extract device information
+result_base_name=$(basename "$dir")
 vendor_path="$dir/extracted/vendor/build.prop"
 system_path="$dir/extracted/system/system/build.prop"
 
-device_name=$(grep_prop "ro.product.vendor.model" "$vendor_path")
+device_name=$(grep_prop "ro.product.model" "$system_path")
 device_build_id=$(grep_prop "ro.build.id" "$system_path")
 device_code_name=$(grep_prop "ro.product.vendor.name" "$vendor_path")
-device_code_name_title=${device_code_name^}
 device_build_android_version=$(grep_prop "ro.vendor.build.version.release" "$vendor_path")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$vendor_path")
 
-mkdir -p result
+# Construct the base name
+base_name=${device_code_name^}.A$device_build_android_version.$(date -d "$device_build_security_patch" '+%y%m%d')
 
-base_name=$device_code_name_title.A$device_build_android_version.$(echo "$device_build_security_patch" | sed 's/-//g')
-subdir=$(basename "$dir")
+# Prepare the result directory
+mkdir -p "result/$result_base_name"
+cp "$dir"/{module,system}.prop "result/$result_base_name/"
+cp -r ./magisk_module_files/* "result/$result_base_name/"
 
-mkdir -p "result/$subdir"
-ls -la $dir
-cp $dir/{module,system}.prop "result/$subdir/"
-cp -r ./magisk_module_files/* "result/$subdir/"
-
-cd "result/$subdir" || exit 1
-zip -r "../../$base_name.zip" .
+# Create the zip file
+cd "result/$result_base_name" || exit 1
+zip -r -q "../../$base_name".zip .
 cd ../..
 
 print_message "Module saved to $base_name.zip" info
 
-# IMPORTANT: This will save the latest build's (last directory the shell loops thru) base name
-# This won't be a problem for GitHub Actions as we have different instances running for each build
+# Save the build information (only for the latest build)
 if [ -n "$GITHUB_OUTPUT" ]; then
 	{
-		echo "module_base_name=$base_name" ;
-		echo "module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')";
-		echo "device_name=$device_name";
-		echo "device_code_name_title=$device_code_name_title";
-		echo "device_build_id=$device_build_id";
-		echo "device_build_android_version=$device_build_android_version";
-		echo "device_build_security_patch=$device_build_security_patch";
-	} >> "$GITHUB_OUTPUT"
+		echo "module_base_name=$base_name"
+		echo "module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')"
+		echo "device_name=$device_name"
+		echo "device_code_name_title=$device_code_name_title"
+		echo "device_build_id=$device_build_id"
+		echo "device_build_android_version=$device_build_android_version"
+		echo "device_build_security_patch=$device_build_security_patch"
+	} >>"$GITHUB_OUTPUT"
 fi
