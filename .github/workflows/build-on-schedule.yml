@@ -46,7 +46,7 @@ jobs:
       - name: Install APT packages
         uses: daaku/gh-action-apt-install@v4
         with:
-          packages: dos2unix python3 python3-pip zip
+          packages: dos2unix python3 python3-pip zip aria2
 
       - name: Install protobuf
         run: |

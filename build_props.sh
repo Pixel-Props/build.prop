@@ -131,6 +131,7 @@ to_system_prop "# end common build properties
 # build_prop to_system_prop "$vendor_path" "ro.hardware.vulkan"
 build_prop to_system_prop "$vendor_path" "ro.soc.model"
 build_prop to_system_prop "$vendor_path" "ro.soc.manufacturer"
+build_prop to_system_prop "$vendor_path" "ro.gfx.angle.supported"
 to_system_prop "# end PRODUCT_VENDOR_PROPERTIES
 
 # begin ADDITIONAL_VENDOR_PROPERTIES"

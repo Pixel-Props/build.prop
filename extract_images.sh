@@ -5,7 +5,7 @@
 
 # Extract payload as ota or system image if factory
 print_message "Extracting images from archives..." info
-for file in ./*; do                    # List directory ./*
+for file in ./dl/*; do                 # List directory ./dl/*
 	if [ -f "$file" ]; then               # Check if it is a file
 		if [ "${file: -4}" == ".zip" ]; then # Check if it is a zip file
 			filename="${file##*/}"              # Remove the path
@@ -60,6 +60,9 @@ if [ -d "extracted_archive_images" ]; then
 					done
 				fi
 
+				# We dont need the image anymore
+				rm "$file"
+
 				# Time the extraction
 				extraction_end=$(date +%s)
 				extraction_runtime=$((extraction_end - extraction_start))
@@ -69,8 +72,6 @@ if [ -d "extracted_archive_images" ]; then
 			fi
 		fi
 	done
-
-	rm -rf "extracted_archive_images"
 fi
 
 # Extract the images directories

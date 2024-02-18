@@ -29,7 +29,7 @@ device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$syste
 device_code_name_title=${device_code_name^}
 
 # Construct the base name
-base_name=${device_code_name^}.A$device_build_android_version.$(date -d "$device_build_security_patch" '+%y%m%d')
+base_name=$device_code_name_title.A$device_build_android_version.$(date -d "$device_build_security_patch" '+%y%m%d')
 
 # Prepare the result directory
 mkdir -p "result/$result_base_name"
@@ -42,12 +42,13 @@ zip -r -q "../../$base_name".zip .
 cd ../..
 
 print_message "Module saved to $base_name.zip" info
+module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')
 
 # Save the build information (only for the latest build)
 if [ -n "$GITHUB_OUTPUT" ]; then
 	{
 		echo "module_base_name=$base_name"
-		echo "module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')"
+		echo "module_hash=$module_hash"
 		echo "device_name=$device_name"
 		echo "device_code_name_title=$device_code_name_title"
 		echo "device_build_id=$device_build_id"
