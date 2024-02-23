@@ -11,7 +11,7 @@ for file in ./dl/*; do                 # List directory ./dl/*
 			filename="${file##*/}"              # Remove the path
 			basename="${filename%.*}"           # Remove the extension
 			devicename="${basename%%-*}"        # Remove the extension
-			print_message "Processing \"$filename\"..." debug
+			print_message "\nProcessing \"$filename\"..." debug
 
 			# Time the extraction
 			extraction_start=$(date +%s)
@@ -86,8 +86,10 @@ for dir in ./extracted_images/*; do # List directory ./*
 
 		# Extract all and clean
 		for image_name in "${IMAGES2EXTRACT[@]}"; do
-			extract_image "$dir" "$image_name"
-			rm "$dir/$image_name.img"
+			if [ -f "$dir/$image_name.img" ]; then
+				extract_image "$dir" "$image_name"
+				rm "$dir/$image_name.img"
+			fi
 		done
 
 		# Time the extraction

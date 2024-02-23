@@ -3,6 +3,7 @@
 ui_print ""
 ui_print "- Building configuration file for PlayIntegrityFix"
 PIF_DIR="/data/adb/pif.json"
+PIF_BUILD_ID=$(grep_prop "ro.product.build.id" "$MODPATH_SYSTEM_PROP")
 PIF_PRODUCT=$(grep_prop "ro.product.name" "$MODPATH_SYSTEM_PROP")
 PIF_DEVICE=$(grep_prop "ro.product.device" "$MODPATH_SYSTEM_PROP")
 PIF_MANUFACTURER=$(grep_prop "ro.product.manufacturer" "$MODPATH_SYSTEM_PROP")
@@ -28,6 +29,7 @@ if [[ "$PIF_PRODUCT" == *_beta ]] || [ "$ENABLE_PIF_SPOOF" = "true" ]; then
   NEW_PIF=$(
     cat <<EOF
 {
+  "ID": "$PIF_BUILD_ID",
   "PRODUCT": "$PIF_PRODUCT",
   "DEVICE": "$PIF_DEVICE",
   "MANUFACTURER": "$PIF_MANUFACTURER",

@@ -41,7 +41,7 @@ cd "result/$result_base_name" || exit 1
 zip -r -q "../../$base_name".zip .
 cd ../..
 
-print_message "Module saved to $base_name.zip" info
+print_message "Module saved to $base_name.zip\n" info
 module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')
 
 # Save the build information (only for the latest build)

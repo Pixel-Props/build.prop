@@ -300,5 +300,5 @@ print_message "Built props for $device_name [$device_build_description]!" debug
 print_message "Props saved to \"${dir}\"" info
 
 # Build Magisk module
-print_message "\nBuilding Magisk module...\n" info
+print_message "Building module..." debug
 ./build_magisk_module.sh "$dir"
