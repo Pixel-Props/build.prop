@@ -29,7 +29,7 @@ if [[ "$PIF_PRODUCT" == *_beta ]] || [ "$ENABLE_PIF_SPOOF" = "true" ]; then
   NEW_PIF=$(
     cat <<EOF
 {
-  "ID": "$PIF_BUILD_ID",
+  "BUILD_ID": "$PIF_BUILD_ID",
   "PRODUCT": "$PIF_PRODUCT",
   "DEVICE": "$PIF_DEVICE",
   "MANUFACTURER": "$PIF_MANUFACTURER",
@@ -53,7 +53,7 @@ EOF
 
     # Kill and clear data from few Google apps
     for google_app in $GOOGLE_APPS; do
-      su -c killall "$google_app"
+      am force-stop "$google_app"
       # su -c pm clear "$google_app" # Before clearing the data we need TODO: Automate sign-out from Device Activity
       # ui_print " ? Cleanned $google_app"
     done
