@@ -64,7 +64,8 @@ item "Using format: $FORMAT $STYLE";
 item "Parsing system.prop(s) ...";
 
 
-PRODUCT=$(file_getprop "$PROP_FILE" ro.product.name);
+  _comment="https://t.me/PixelProps"
+  PRODUCT=$(file_getprop "$PROP_FILE" ro.product.name);
   DEVICE=$(file_getprop "$PROP_FILE" ro.product.device);
   MANUFACTURER=$(file_getprop "$PROP_FILE" ro.product.manufacturer);
   BRAND=$(file_getprop "$PROP_FILE" ro.product.brand);
@@ -80,18 +81,16 @@ PRODUCT=$(file_getprop "$PROP_FILE" ro.product.name);
 
 if [ -z "$FINGERPRINT" ]; then
   if [ -f "$PROP_FILE" ]; then
-    die "No fingerprint found, use a /system/"$PROP_FILE" to start";
+    die "No fingerprint found, use a /system/system.prop to start";
   else
     die "No fingerprint found, unable to continue";
   fi;
 fi;
 echo "$FINGERPRINT";
 
-LIST="MANUFACTURER MODEL FINGERPRINT BRAND PRODUCT DEVICE";
-if $OLDFIELDS; then
-  BUILD_ID=$ID;
-  LIST="$LIST BUILD_ID";
-fi;
+LIST="_comment MANUFACTURER MODEL FINGERPRINT BRAND PRODUCT DEVICE";
+BUILD_ID=$(file_getprop "$PROP_FILE" ro.product.build.id);
+[ ! -z "$BUILD_ID" ] && LIST="$LIST BUILD_ID";
 
 if ! $ALLFIELDS; then
   item "Parsing build UTC date ...";
@@ -129,12 +128,12 @@ item "Parsing build first API level ...";
     item "First API level 33 or higher, resetting to 32 ...";
     FIRST_API_LEVEL=32;
   fi;
-  LIST="$LIST FIRST_API_LEVEL";
+  [ ! -z "$FIRST_API_LEVEL" ] && LIST="$LIST FIRST_API_LEVEL";
   
 if $OLDFIELDS; then
   VNDK_VERSION=$(file_getprop "$PROP_FILE" ro.vndk.version);
   [ -z "$VNDK_VERSION" ] && VNDK_VERSION=$(file_getprop "$PROP_FILE" ro.product.vndk.version);
-  LIST="$LIST VNDK_VERSION";
+  [ ! -z "$VNDK_VERSION" ] && LIST="$LIST VNDK_VERSION";
 fi;
 
 if [ -f "$LOCAL"pif.$FORMAT ]; then
