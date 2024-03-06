@@ -10,10 +10,22 @@ SYS_PROP_MANUFACTURER=$(grep_prop ro.product.system.manufacturer)
 SYS_PROP_MODEL=$(grep_prop ro.product.system.model)
 SYS_PROP_SDK=$(grep_prop ro.build.version.sdk)
 SYS_PROP_MIN_API=$(grep_prop ro.product.first_api_level /vendor/build.prop)
-MOD_PROP_MANUFACTURER=$(grep_prop ro.product.system.manufacturer "$MODPATH_SYSTEM_PROP")
-MOD_PROP_MODEL=$(grep_prop ro.product.system.model "$MODPATH_SYSTEM_PROP")
+MOD_PROP_MANUFACTURER=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.product.manufacturer);
+[ -z "$MOD_PROP_MANUFACTURER" ] && MOD_PROP_MANUFACTURER=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.product.system.manufacturer);
+MOD_PROP_MODEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.product.model);
+[ -z "$MOD_PROP_MODEL" ] && MOD_PROP_MODEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.product.system.model);
 MOD_PROP_SDK=$(grep_prop ro.build.version.sdk "$MODPATH_SYSTEM_PROP" | grep -ohE '[0-9]{2}')
-MOD_PROP_FIRST_API_LEVEL=$(grep_prop ro.product.first_api_level "$MODPATH_SYSTEM_PROP" | grep -ohE '[0-9]{2}')
+FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.product.first_api_level);
+[ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.board.first_api_level);
+[ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.board.api_level);
+if [ -z "$FIRST_API_LEVEL" ]; then
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.build.version.sdk);
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.system.build.version.sdk);
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.build.version.sdk);
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.system.build.version.sdk);
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.vendor.build.version.sdk);
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$MODPATH_SYSTEM_PROP" ro.product.build.version.sdk);
+fi;
 
 # Function to check and update a property
 check_and_update_prop() {
@@ -48,7 +60,7 @@ ui_print ""
 check_and_update_prop "$SYS_PROP_MANUFACTURER" "$MOD_PROP_MANUFACTURER" "MANUFACTURER" "ro.product.system.manufacturer" "ne"
 check_and_update_prop "$SYS_PROP_MODEL" "$MOD_PROP_MODEL" "MODEL" "ro.product.system_ext.model" "ne"
 check_and_update_prop "$SYS_PROP_SDK" "$MOD_PROP_SDK" "SDK" "ro.build.version.sdk" "lt"
-check_and_update_prop "$SYS_PROP_MIN_API" "$MOD_PROP_FIRST_API_LEVEL" "FIRST_API" "ro.product.first_api_level" "lt"
+check_and_update_prop "$SYS_PROP_MIN_API" "$FIRST_API_LEVEL" "FIRST_API" "ro.product.first_api_level" "lt"
 
 ui_print "  ? When in safe mode your device will ignore to spoof the specified prop."
 ui_print ""
