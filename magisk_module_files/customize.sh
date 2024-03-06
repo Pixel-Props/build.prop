@@ -2,6 +2,7 @@
 
 # Module variables
 MODPATH_SYSTEM_PROP="$MODPATH"/system.prop
+PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
 MOD_PROP_MODEL=$(grep_prop ro.product.model "$MODPATH_SYSTEM_PROP")
 MOD_PROP_PRODUCT=$(grep_prop ro.build.product "$MODPATH_SYSTEM_PROP" | tr '[:lower:]' '[:upper:]')
 MOD_PROP_VERSION=$(grep_prop ro.build.version.release "$MODPATH_SYSTEM_PROP")
@@ -14,7 +15,7 @@ MOD_PROP_YEAR=$(date -d "$MOD_PROP_SECURITYPATCH" '+%Y')
 ui_print "- Installing, $MOD_PROP_MODEL ($MOD_PROP_PRODUCT) Prop - $MOD_PROP_MONTH $MOD_PROP_YEAR"
 
 # Running the PlayIntegrityFix Configuration Build Support (BETA).
-[ -f "$MODPATH/pif.sh" ] && . "$MODPATH"/pif.sh
+[[ -f "$MODPATH/pif.sh" ] && [ -d PIF_MODULE_DIR ]] && . "$MODPATH"/pif.sh
 
 # Running the service early
 [ -f "$MODPATH/service.sh" ] && . "$MODPATH"/service.sh
