@@ -15,7 +15,7 @@ MOD_PROP_YEAR=$(date -d "$MOD_PROP_SECURITYPATCH" '+%Y')
 ui_print "- Installing, $MOD_PROP_MODEL ($MOD_PROP_PRODUCT) Prop - $MOD_PROP_MONTH $MOD_PROP_YEAR"
 
 # Running the PlayIntegrityFix Configuration Build Support (BETA).
-[[ -f "$MODPATH/pif.sh" ] && [ -d PIF_MODULE_DIR ]] && . "$MODPATH"/pif.sh
+[ -f "$MODPATH/pif.sh" ] && [ -d "$PIF_MODULE_DIR" ] && . "$MODPATH"/pif.sh
 
 # Running the service early
 [ -f "$MODPATH/service.sh" ] && . "$MODPATH"/service.sh

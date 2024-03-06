@@ -44,6 +44,7 @@ fi;
 cd "$DIR";
 
 FORMAT=json;
+PROP_FILE="$MODPATH/system.prop"
 ALLFIELDS=false;
 OLDFIELDS=false;
 ADVANCED=false;
@@ -57,29 +58,29 @@ until [ -z "$1" ]; do
 done;
 item "Using format: $FORMAT $STYLE";
 
-[ ! -f system.prop ]  \
+[ ! -f "$PROP_FILE" ]  \
    && die "No system.prop files found in script directory";
 
 item "Parsing system.prop(s) ...";
 
 
-PRODUCT=$(file_getprop system.prop ro.product.name);
-  DEVICE=$(file_getprop system.prop ro.product.device);
-  MANUFACTURER=$(file_getprop system.prop ro.product.manufacturer);
-  BRAND=$(file_getprop system.prop ro.product.brand);
-  MODEL=$(file_getprop system.prop ro.product.model);
-  FINGERPRINT=$(file_getprop system.prop ro.build.fingerprint);
+PRODUCT=$(file_getprop "$PROP_FILE" ro.product.name);
+  DEVICE=$(file_getprop "$PROP_FILE" ro.product.device);
+  MANUFACTURER=$(file_getprop "$PROP_FILE" ro.product.manufacturer);
+  BRAND=$(file_getprop "$PROP_FILE" ro.product.brand);
+  MODEL=$(file_getprop "$PROP_FILE" ro.product.model);
+  FINGERPRINT=$(file_getprop "$PROP_FILE" ro.build.fingerprint);
 
-  [ -z "$PRODUCT" ] && PRODUCT=$(file_getprop system.prop ro.product.system.name);
-  [ -z "$DEVICE" ] && DEVICE=$(file_getprop system.prop ro.product.system.device);
-  [ -z "$MANUFACTURER" ] && MANUFACTURER=$(file_getprop system.prop ro.product.system.manufacturer);
-  [ -z "$BRAND" ] && BRAND=$(file_getprop system.prop ro.product.system.brand);
-  [ -z "$MODEL" ] && MODEL=$(file_getprop system.prop ro.product.system.model);
-  [ -z "$FINGERPRINT" ] && FINGERPRINT=$(file_getprop system.prop ro.system.build.fingerprint);
+  [ -z "$PRODUCT" ] && PRODUCT=$(file_getprop "$PROP_FILE" ro.product.system.name);
+  [ -z "$DEVICE" ] && DEVICE=$(file_getprop "$PROP_FILE" ro.product.system.device);
+  [ -z "$MANUFACTURER" ] && MANUFACTURER=$(file_getprop "$PROP_FILE" ro.product.system.manufacturer);
+  [ -z "$BRAND" ] && BRAND=$(file_getprop "$PROP_FILE" ro.product.system.brand);
+  [ -z "$MODEL" ] && MODEL=$(file_getprop "$PROP_FILE" ro.product.system.model);
+  [ -z "$FINGERPRINT" ] && FINGERPRINT=$(file_getprop "$PROP_FILE" ro.system.build.fingerprint);
 
 if [ -z "$FINGERPRINT" ]; then
-  if [ -f system.prop ]; then
-    die "No fingerprint found, use a /system/system.prop to start";
+  if [ -f "$PROP_FILE" ]; then
+    die "No fingerprint found, use a /system/"$PROP_FILE" to start";
   else
     die "No fingerprint found, unable to continue";
   fi;
@@ -94,33 +95,33 @@ fi;
 
 if ! $ALLFIELDS; then
   item "Parsing build UTC date ...";
-  UTC=$(file_getprop system.prop ro.build.date.utc);
-  [ -z "$UTC" ] && UTC=$(file_getprop system.prop ro.build.date.utc);
+  UTC=$(file_getprop "$PROP_FILE" ro.build.date.utc);
+  [ -z "$UTC" ] && UTC=$(file_getprop "$PROP_FILE" ro.build.date.utc);
   date -u -d @$UTC;
 fi;
 
 if [ "$UTC" -gt 1521158400 ] || $ALLFIELDS; then
   $ALLFIELDS || item "Build date newer than March 2018, adding SECURITY_PATCH ...";
-  SECURITY_PATCH=$(file_getprop system.prop ro.build.version.security_patch);
-  [ -z "$SECURITY_PATCH" ] && SECURITY_PATCH=$(file_getprop system.prop ro.build.version.security_patch);
+  SECURITY_PATCH=$(file_getprop "$PROP_FILE" ro.build.version.security_patch);
+  [ -z "$SECURITY_PATCH" ] && SECURITY_PATCH=$(file_getprop "$PROP_FILE" ro.build.version.security_patch);
   LIST="$LIST SECURITY_PATCH";
   $ALLFIELDS || echo "$SECURITY_PATCH";
 fi;
 
 item "Parsing build first API level ...";
-  FIRST_API_LEVEL=$(file_getprop system.prop ro.product.first_api_level);
-  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop system.prop ro.board.first_api_level);
-  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop system.prop ro.board.api_level);
+  FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.product.first_api_level);
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.board.first_api_level);
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.board.api_level);
 
   if [ -z "$FIRST_API_LEVEL" ]; then
-    [ ! -f vendor-system.prop ] && die "No first API level found, add vendor-system.prop";
+    [ ! -f vendor-"$PROP_FILE" ] && die "No first API level found, add vendor-"$PROP_FILE"";
     item "No first API level found, falling back to build SDK version ...";
-    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop system.prop ro.build.version.sdk);
-    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop system.prop ro.system.build.version.sdk);
-    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop system.prop ro.build.version.sdk);
-    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop system.prop ro.system.build.version.sdk);
-    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop system.prop ro.vendor.build.version.sdk);
-    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop system.prop ro.product.build.version.sdk);
+    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.build.version.sdk);
+    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.system.build.version.sdk);
+    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.build.version.sdk);
+    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.system.build.version.sdk);
+    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.vendor.build.version.sdk);
+    [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(file_getprop "$PROP_FILE" ro.product.build.version.sdk);
   fi;
   echo "$FIRST_API_LEVEL";
 
@@ -131,8 +132,8 @@ item "Parsing build first API level ...";
   LIST="$LIST FIRST_API_LEVEL";
   
 if $OLDFIELDS; then
-  VNDK_VERSION=$(file_getprop vendor-system.prop ro.vndk.version);
-  [ -z "$VNDK_VERSION" ] && VNDK_VERSION=$(file_getprop product-system.prop ro.product.vndk.version);
+  VNDK_VERSION=$(file_getprop "$PROP_FILE" ro.vndk.version);
+  [ -z "$VNDK_VERSION" ] && VNDK_VERSION=$(file_getprop "$PROP_FILE" ro.product.vndk.version);
   LIST="$LIST VNDK_VERSION";
 fi;
 
