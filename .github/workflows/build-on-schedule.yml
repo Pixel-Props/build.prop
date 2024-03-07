@@ -98,7 +98,7 @@ jobs:
             - File name: `${{ steps.extract_and_build.outputs.module_base_name }}.zip`
             - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`
             #### Firmware
-            - Build Description: ${{ steps.extract_and_build.outputs.device_build_description }}
+            - Build Description: `${{ steps.extract_and_build.outputs.device_build_description }}`
         if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
 
       - name: Send to Telegram
