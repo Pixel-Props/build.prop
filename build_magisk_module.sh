@@ -23,13 +23,14 @@ system_prop_path="$dir/system.prop"
 
 device_name=$(grep_prop "ro.product.model" "$system_prop_path")
 device_build_id=$(grep_prop "ro.build.id" "$system_prop_path")
-device_code_name=$(grep_prop "ro.product.vendor.name" "$system_prop_path")
+device_codename=$(grep_prop "ro.product.vendor.name" "$system_prop_path")
+device_build_description=$(grep_prop "ro.build.description" "$system_prop_path")
 device_build_android_version=$(grep_prop "ro.vendor.build.version.release" "$system_prop_path")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$system_prop_path")
-device_code_name_title=${device_code_name^}
+device_codename=${device_codename^}
 
 # Construct the base name
-base_name=$device_code_name_title.A$device_build_android_version.$(date -d "$device_build_security_patch" '+%y%m%d')
+base_name="${device_codename}_$device_build_id"
 
 # Prepare the result directory
 mkdir -p "result/$result_base_name"
@@ -50,8 +51,9 @@ if [ -n "$GITHUB_OUTPUT" ]; then
 		echo "module_base_name=$base_name"
 		echo "module_hash=$module_hash"
 		echo "device_name=$device_name"
-		echo "device_code_name_title=$device_code_name_title"
+		echo "device_codename=$device_codename"
 		echo "device_build_id=$device_build_id"
+		echo "device_build_description=$device_build_description"
 		echo "device_build_android_version=$device_build_android_version"
 		echo "device_build_security_patch=$device_build_security_patch"
 	} >>"$GITHUB_OUTPUT"

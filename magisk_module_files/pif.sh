@@ -156,8 +156,10 @@ item "Writing new custom.pif.$FORMAT ...";
   echo "Patch Done!"
   su -c killall com.google.android.gms.unstable
   echo "Killed Google Play Services!"
-  mv "$LOCAL"pif.json /data/adb/;
-  echo "Custom PIF moved to /data/adb/pif.json!"
+  cp "$LOCAL"pif.json /data/adb/;
+  cp "$LOCAL"pif.json /data/adb/modules/playintegrityfix/;
+  rm -f "$LOCAL"pif.json
+  echo "Custom PIF moved!"
 }
 
 echo "Thanks to Chiteroman and osm0sis and x1337cn"
