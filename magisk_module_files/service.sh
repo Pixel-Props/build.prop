@@ -3,6 +3,7 @@
 
 export MODDIR="${0%/*}"
 export MODPATH="$MODDIR"
+file_getprop() { grep -m1 "^$2=" "$1" 2>/dev/null | cut -d= -f2-; }
 
 # Module variables
 MODPATH_SYSTEM_PROP="$MODPATH"/system.prop
