@@ -105,7 +105,7 @@ jobs:
         run: |
           {
             echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_codename }}';
-            echo 'Build Description: ${{ steps.extract_and_build.outputs.device_build_description }}'
+            echo '${{ steps.extract_and_build.outputs.device_build_description }}'
           } > .tg_caption
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \
