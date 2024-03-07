@@ -66,10 +66,10 @@ jobs:
       - name: Check if module build ID already exists
         id: check_build_id
         run: |
-          BASENAME=${{ steps.extract_and_build.outputs.module_base_name }}
+          BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
           BUILD_ID=${{ steps.extract_and_build.outputs.device_build_id }}
           EXISTING_RELEASE_NOTES=$(curl --silent "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[].body')
-          if echo "$EXISTING_RELEASE_NOTES" | grep -q "$BASENAME\..*\($BUILD_ID\)"; then
+          if echo "$EXISTING_RELEASE_NOTES" | grep -q "${BASENAME}_${BUILD_ID}"; then
             echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
           else
             echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT

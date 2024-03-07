@@ -29,7 +29,7 @@ device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$syste
 device_codename=${device_codename^}
 
 # Construct the base name
-base_name="$device_codename.A$device_build_android_version.$(date -d "$device_build_security_patch" '+%y%m%d').($device_build_id)"
+base_name="${device_codename}_$device_build_id"
 
 # Prepare the result directory
 mkdir -p "result/$result_base_name"
