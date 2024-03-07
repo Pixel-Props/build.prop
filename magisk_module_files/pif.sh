@@ -23,13 +23,11 @@ PIF_SDK=$(grep_prop "ro.build.version.sdk" "$MODPATH_SYSTEM_PROP")
 # Set ENABLE_PIF_SPOOF to false by default
 ENABLE_PIF_SPOOF=false
 
-# Loop true each PIF dirs
-for PIF_DIR in $PIF_DIRS; do
-  # Check if the device name is beta or if ENABLE_PIF_SPOOF is set to true
-  if [[ "$PIF_PRODUCT" == *_beta ]] || [ "$ENABLE_PIF_SPOOF" = "true" ]; then
+# Check if the device name is beta or if ENABLE_PIF_SPOOF is set to true
+if [[ "$PIF_PRODUCT" == *_beta ]] || [ "$ENABLE_PIF_SPOOF" = "true" ]; then
 
-    NEW_PIF=$(
-      cat <<EOF
+  NEW_PIF=$(
+    cat <<EOF
 {
   "BUILD_ID": "$PIF_BUILD_ID",
   "PRODUCT": "$PIF_PRODUCT",
@@ -43,8 +41,10 @@ for PIF_DIR in $PIF_DIRS; do
   "_comment": "https://t.me/PixelProps",
 }
 EOF
-    )
+  )
 
+  # Loop true each PIF dirs
+  for PIF_DIR in $PIF_DIRS; do
     # Compare new PIF with existing PIF file
     if echo "$NEW_PIF" | cmp - "$PIF_DIR" >/dev/null; then
       ui_print " - No changes detected in PlayIntegrityFix file."
@@ -69,9 +69,12 @@ EOF
       # Open the guide for fixing new generation assistant and possibly more...
       nohup am start -a android.intent.action.VIEW -d https://t.me/PixelProps/157 >/dev/null 2>&1 &
     fi
-  else
-    ui_print " - PlayIntegritySpoof does not met device or is disabled."
+  done
+else
+  ui_print " - PlayIntegritySpoof does not met device or is disabled."
 
+  # Loop true each PIF dirs
+  for PIF_DIR in $PIF_DIRS; do
     # If has backup restore it
     [ -f "${PIF_DIR}.old" ] && mv "${PIF_DIR}.old" "$PIF_DIR"
 
@@ -80,5 +83,5 @@ EOF
       ui_print " -+ Missing $PIF_DIR, Downloading stable one for you."
       wget -O -q --show-progress "$PIF_DIR" "https://raw.githubusercontent.com/x1337cn/AutoPIF-Next/main/pif.json"
     fi
-  fi
-done
+  done
+fi

@@ -67,7 +67,7 @@ jobs:
         id: check_build_id
         run: |
           BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
-          BUILD_ID=${{ steps.extract_and_build.outputs.device_build_id }}
+          BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
           EXISTING_RELEASE_NOTES=$(curl --silent "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[].body')
           if echo "$EXISTING_RELEASE_NOTES" | grep -q "${BASENAME}_${BUILD_ID}"; then
             echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
@@ -98,17 +98,19 @@ jobs:
             - File name: `${{ steps.extract_and_build.outputs.module_base_name }}.zip`
             - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`
             #### Firmware
+            - Build Description: ${{ steps.extract_and_build.outputs.device_build_description }}
+            - Android Version: `${{ steps.extract_and_build.outputs.device_build_android_version }}`
             - Build ID: `${{ steps.extract_and_build.outputs.device_build_id }}`
-            - Android version: `${{ steps.extract_and_build.outputs.device_build_android_version }}`
-            - Security patch: `${{ steps.extract_and_build.outputs.device_build_security_patch }}`
+            - Security Patch: `${{ steps.extract_and_build.outputs.device_build_security_patch }}`
         if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
 
       - name: Send to Telegram
         run: |
           {
             echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_codename }}';
+            echo 'Build Description: ${{ steps.extract_and_build.outputs.device_build_description }}'
+            echo 'Build ID: ${{ steps.extract_and_build.outputs.device_build_id }}';
             echo 'Security Patch: ${{ steps.extract_and_build.outputs.device_build_security_patch }}';
-            echo 'BUILD ID: ${{ steps.extract_and_build.outputs.device_build_id }}';
           } > .tg_caption
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \
