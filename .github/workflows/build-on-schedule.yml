@@ -66,12 +66,13 @@ jobs:
       - name: Check if module build ID already exists
         id: check_build_id
         run: |
+          BASENAME=${{ steps.extract_and_build.outputs.module_base_name }}
           BUILD_ID=${{ steps.extract_and_build.outputs.device_build_id }}
           EXISTING_RELEASE_NOTES=$(curl --silent "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[].body')
-          if echo "$EXISTING_RELEASE_NOTES" | grep -q "$BUILD_ID"; then
-            echo "BUILD_ID_EXISTS=true" >> $GITHUB_OUTPUT
+          if echo "$EXISTING_RELEASE_NOTES" | grep -q "$BASENAME\..*\($BUILD_ID\)"; then
+            echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
           else
-            echo "BUILD_ID_EXISTS=false" >> $GITHUB_OUTPUT
+            echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload files to release
@@ -83,7 +84,7 @@ jobs:
           asset_path: ./${{ steps.extract_and_build.outputs.module_base_name }}.zip
           asset_name: ${{ steps.extract_and_build.outputs.module_base_name }}.zip
           asset_content_type: application/zip
-        if: steps.check_build_id.outputs.BUILD_ID_EXISTS == 'false'
+        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
 
       - name: Add information to release
         uses: irongut/EditRelease@v1.2.0
@@ -92,7 +93,7 @@ jobs:
           id: ${{ needs.prepare_build.outputs.id }}
           replacebody: false
           body: |
-            ## ${{ steps.extract_and_build.outputs.device_name }} (${{ steps.extract_and_build.outputs.device_code_name_title }})
+            ## ${{ steps.extract_and_build.outputs.device_name }} (${{ steps.extract_and_build.outputs.device_codename }})
             #### Module
             - File name: `${{ steps.extract_and_build.outputs.module_base_name }}.zip`
             - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`
@@ -100,14 +101,14 @@ jobs:
             - Build ID: `${{ steps.extract_and_build.outputs.device_build_id }}`
             - Android version: `${{ steps.extract_and_build.outputs.device_build_android_version }}`
             - Security patch: `${{ steps.extract_and_build.outputs.device_build_security_patch }}`
-        if: steps.check_build_id.outputs.BUILD_ID_EXISTS == 'false'
+        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
 
       - name: Send to Telegram
         run: |
           {
-            echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_code_name_title }}';
+            echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_codename }}';
             echo 'Security Patch: ${{ steps.extract_and_build.outputs.device_build_security_patch }}';
-            echo 'ID: ${{ steps.extract_and_build.outputs.device_build_id }}';
+            echo 'BUILD ID: ${{ steps.extract_and_build.outputs.device_build_id }}';
           } > .tg_caption
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \
@@ -115,4 +116,4 @@ jobs:
           -F "chat_id=${{ secrets.CHANNEL_ID }}" \
           -F "document=@${{ steps.extract_and_build.outputs.module_base_name }}.zip;type=application/zip" \
           -F "caption=$(cat .tg_caption)"
-        if: steps.check_build_id.outputs.BUILD_ID_EXISTS == 'false'
+        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
