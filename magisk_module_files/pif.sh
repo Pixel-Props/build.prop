@@ -165,7 +165,6 @@ item "Writing new custom.pif.$FORMAT ...";
     else
       mv "$PIF_DIR" "${PIF_DIR}.old"
       cp "$LOCAL"pif.$FORMAT "$PIF_DIR";
-      echo "$NEW_PIF" >"$PIF_DIR"
       ui_print " -+ PlayIntegrityFix file has been updated and saved to $PIF_DIR"
 
       # Kill and clear data from few Google apps
