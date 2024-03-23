@@ -160,7 +160,7 @@ item "Writing new custom.pif.$FORMAT ...";
   echo "Killed Google Play Services!"
   for PIF_DIR in $PIF_DIRS; do
     # Compare new PIF with existing PIF file
-    if echo "$(cat filename.txt)" | cmp - "$PIF_DIR" >/dev/null; then
+    if echo "$(cat "$LOCAL"pif.$FORMAT)" | cmp - "$PIF_DIR" >/dev/null; then
       ui_print " - No changes detected in \"$PIF_DIR\"."
     else
       mv "$PIF_DIR" "${PIF_DIR}.old"
