@@ -6,12 +6,14 @@ export MODPATH="$MODDIR"
 
 # Module variables
 MODPATH_SYSTEM_PROP="$MODPATH"/system.prop
-SYS_PROP_MANUFACTURER=$(grep_prop ro.product.system.manufacturer)
-SYS_PROP_MODEL=$(grep_prop ro.product.system.model)
+SYS_PROP_MANUFACTURER=$(grep_prop ro.product.manufacturer)
+SYS_PROP_DEVICE=$(grep_prop ro.product.device)
+SYS_PROP_MODEL=$(grep_prop ro.product.model)
 SYS_PROP_SDK=$(grep_prop ro.build.version.sdk)
 SYS_PROP_MIN_API=$(grep_prop ro.product.first_api_level /vendor/build.prop)
-MOD_PROP_MANUFACTURER=$(grep_prop ro.product.system.manufacturer "$MODPATH_SYSTEM_PROP")
-MOD_PROP_MODEL=$(grep_prop ro.product.system.model "$MODPATH_SYSTEM_PROP")
+MOD_PROP_MANUFACTURER=$(grep_prop ro.product.manufacturer "$MODPATH_SYSTEM_PROP")
+MOD_PROP_DEVICE=$(grep_prop ro.product.device "$MODPATH_SYSTEM_PROP")
+MOD_PROP_MODEL=$(grep_prop ro.product.model "$MODPATH_SYSTEM_PROP")
 MOD_PROP_SDK=$(grep_prop ro.build.version.sdk "$MODPATH_SYSTEM_PROP" | grep -ohE '[0-9]{2}')
 MOD_PROP_FIRST_API_LEVEL=$(grep_prop ro.product.first_api_level "$MODPATH_SYSTEM_PROP" | grep -ohE '[0-9]{2}')
 
@@ -45,8 +47,9 @@ ignore_prop() {
 
 # Check and update properties
 ui_print ""
-check_and_update_prop "$SYS_PROP_MANUFACTURER" "$MOD_PROP_MANUFACTURER" "MANUFACTURER" "ro.product.system.manufacturer" "ne"
-check_and_update_prop "$SYS_PROP_MODEL" "$MOD_PROP_MODEL" "MODEL" "ro.product.system_ext.model" "ne"
+check_and_update_prop "$SYS_PROP_MANUFACTURER" "$MOD_PROP_MANUFACTURER" "MANUFACTURER" "ro.product.manufacturer" "ne"
+check_and_update_prop "$SYS_PROP_MODEL" "$MOD_PROP_MODEL" "MODEL" "ro.product.model" "ne"
+check_and_update_prop "$SYS_PROP_DEVICE" "$MOD_PROP_DEVICE" "DEVICE" "ro.product.device" "ne"
 check_and_update_prop "$SYS_PROP_SDK" "$MOD_PROP_SDK" "SDK" "ro.build.version.sdk" "lt"
 check_and_update_prop "$SYS_PROP_MIN_API" "$MOD_PROP_FIRST_API_LEVEL" "FIRST_API" "ro.product.first_api_level" "lt"
 
