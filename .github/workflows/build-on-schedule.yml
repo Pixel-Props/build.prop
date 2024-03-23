@@ -98,19 +98,14 @@ jobs:
             - File name: `${{ steps.extract_and_build.outputs.module_base_name }}.zip`
             - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`
             #### Firmware
-            - Build Description: ${{ steps.extract_and_build.outputs.device_build_description }}
-            - Android Version: `${{ steps.extract_and_build.outputs.device_build_android_version }}`
-            - Build ID: `${{ steps.extract_and_build.outputs.device_build_id }}`
-            - Security Patch: `${{ steps.extract_and_build.outputs.device_build_security_patch }}`
+            - Build Description: `${{ steps.extract_and_build.outputs.device_build_description }}`
         if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
 
       - name: Send to Telegram
         run: |
           {
             echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_codename }}';
-            echo 'Build Description: ${{ steps.extract_and_build.outputs.device_build_description }}'
-            echo 'Build ID: ${{ steps.extract_and_build.outputs.device_build_id }}';
-            echo 'Security Patch: ${{ steps.extract_and_build.outputs.device_build_security_patch }}';
+            echo '${{ steps.extract_and_build.outputs.device_build_description }}'
           } > .tg_caption
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \

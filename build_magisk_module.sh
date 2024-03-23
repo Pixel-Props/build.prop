@@ -41,8 +41,7 @@ cp -r ./magisk_module_files/* "result/$result_base_name/"
 cd "result/$result_base_name" || exit 1
 zip -r -q "../../$base_name".zip .
 cd ../..
-
-print_message "Module saved to $base_name.zip\n" info
+print_message "Module saved to $base_name.zip" debug
 module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')
 
 # Save the build information (only for the latest build)

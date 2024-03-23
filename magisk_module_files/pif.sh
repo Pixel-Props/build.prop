@@ -17,15 +17,13 @@
 # script modified by mohamedamrnady, to be compatible with pixel props
 N="
 ";
-
-echo "system system.prop to custom.pif.json/.prop creator \
-    $N  by osm0sis @ xda-developers";
+PIF_DIRS="/data/adb/pif.json /data/adb/modules/playintegrityfix/pif.json"
 
 item() { echo "$N- $@"; }
 die() { echo "$N$N! $@"; exit 1; }
 file_getprop() { grep -m1 "^$2=" "$1" 2>/dev/null | cut -d= -f2-; }
 
-if [ -d "$1" ]; then
+if [ "$ENABLE_PIF_SPOOF" = "true" ] || [[ "$PIF_PRODUCT" == *_beta ]]; then
   DIR="$1/dummy";
   LOCAL="$(readlink -f "$PWD")";
   shift;
@@ -156,10 +154,31 @@ item "Writing new custom.pif.$FORMAT ...";
   echo "Patch Done!"
   su -c killall com.google.android.gms.unstable
   echo "Killed Google Play Services!"
-  cp "$LOCAL"pif.json /data/adb/;
-  cp "$LOCAL"pif.json /data/adb/modules/playintegrityfix/;
-  rm -f "$LOCAL"pif.json
-  echo "Custom PIF moved!"
-}
+  for PIF_DIR in $PIF_DIRS; do
+    # Compare new PIF with existing PIF file
+    if echo "$(cat filename.txt)" | cmp - "$PIF_DIR" >/dev/null; then
+      ui_print " - No changes detected in \"$PIF_DIR\"."
+    else
+      mv "$PIF_DIR" "${PIF_DIR}.old"
+      cp "$LOCAL"pif.$FORMAT "$PIF_DIR";
+      echo "$NEW_PIF" >"$PIF_DIR"
+      ui_print " -+ PlayIntegrityFix file has been updated and saved to $PIF_DIR"
 
-echo "Thanks to Chiteroman and osm0sis and x1337cn"
+      # Kill and clear data from few Google apps
+      # for google_app in $GOOGLE_APPS; do
+      #   su -c am force-stop "$google_app"
+      #   su -c pm clear "$google_app" # Before clearing the data we need TODO: Automate sign-out from Device Activity
+      #   ui_print " ? Cleanned $google_app"
+      # done
+
+      # settings get/put --user $(am get-current-user) secure android_id
+    fi
+  done
+  rm -f "$LOCAL"pif.$FORMAT
+}
+  # Instructions
+  ui_print "  ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
+  ui_print "  ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
+  ui_print "  ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$PIF_MODEL\"."
+  ui_print "  ? More info: https://t.me/PixelProps/157"
+  echo "Thanks to Chiteroman and osm0sis and x1337cn"
