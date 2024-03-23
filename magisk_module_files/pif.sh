@@ -24,6 +24,9 @@ item() { echo "$N- $@"; }
 die() { echo "$N$N! $@"; exit 1; }
 file_getprop() { grep -m1 "^$2=" "$1" 2>/dev/null | cut -d= -f2-; }
 
+# Set ENABLE_PIF_SPOOF to false by default
+ENABLE_PIF_SPOOF=false
+
 if [[ "$ENABLE_PIF_SPOOF" = "true" ] || [[ "$PIF_PRODUCT" == *_beta ]]] && [ -d "$PIF_MODULE_DIR" ]; then
   DIR="$1/dummy";
   LOCAL="$(readlink -f "$PWD")";
