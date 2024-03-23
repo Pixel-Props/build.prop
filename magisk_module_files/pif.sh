@@ -18,12 +18,13 @@
 N="
 ";
 PIF_DIRS="/data/adb/pif.json /data/adb/modules/playintegrityfix/pif.json"
+PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
 
 item() { echo "$N- $@"; }
 die() { echo "$N$N! $@"; exit 1; }
 file_getprop() { grep -m1 "^$2=" "$1" 2>/dev/null | cut -d= -f2-; }
 
-if [ "$ENABLE_PIF_SPOOF" = "true" ] || [[ "$PIF_PRODUCT" == *_beta ]]; then
+if [[ "$ENABLE_PIF_SPOOF" = "true" ] || [[ "$PIF_PRODUCT" == *_beta ]]] && [ -d "$PIF_MODULE_DIR" ]; then
   DIR="$1/dummy";
   LOCAL="$(readlink -f "$PWD")";
   shift;
