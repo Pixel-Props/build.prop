@@ -81,11 +81,26 @@ install_pip_packages() {
 }
 
 grep_prop() {
-  local REGEX="s/^$1=//p"
+  PROP="$1"
   shift
-  local FILES=$@
-  [ -z "$FILES" ] && FILES='/system/build.prop'
-  cat $FILES 2>/dev/null | dos2unix | sed -n "$REGEX" | head -n 1
+  FILES="$@"
+
+  # TODO: FILES Probably need a fix?
+  [ -z "$FILES" ] && FILES="/system/build.prop /system_ext/etc/build.prop /vendor/build.prop /vendor/odm/etc/build.prop /product/etc/build.prop"
+  grep -m1 "^$PROP=" $FILES 2>/dev/null | cut -d= -f2- | head -n 1
+}
+
+# Function to proxy between multiple property value prefixes
+get_property() {
+  PROP="$1"
+  shift
+  FILES="$@"
+
+  PROPERTY_PREFIXES="ro ro.board ro.system ro.vendor ro.product ro.product.product ro.product.bootimage ro.product.vendor ro.product.odm ro.product.system ro.product.system_ext ro.product.system_ext"
+  for PREFIX in $PROPERTY_PREFIXES; do
+    value=$(grep_prop "$PREFIX.$PROP" "$FILES")
+    [ -n "$value" ] && echo "$value" && return
+  done
 }
 
 to_system_prop() {
