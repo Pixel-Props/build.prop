@@ -12,10 +12,8 @@ PIF_LIST="_comment MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT FIRST_API
 build_json() {
   echo '{'
   for PROP in $PIF_LIST; do
-    printf "\"%s\": \"%s\"" "$PROP" "$(eval "echo \$$PROP")"
-    [ "$PROP" != "$PIF_LIST" ] && printf "," # Add comma if not the last property
-    echo
-  done
+    printf "\"%s\": \"%s\",\n" "$PROP" "$(eval "echo \$$PROP")"
+  done | sed '$s/,//'
   echo '}'
 }
 
