@@ -39,7 +39,9 @@ main() {
   DEVICE=$(get_property "device" "$MODPATH_SYSTEM_PROP")
   PRODUCT=$(get_property "name" "$MODPATH_SYSTEM_PROP")
   BUILD_ID=$(get_property "build.id" "$MODPATH_SYSTEM_PROP")
-  FIRST_API_LEVEL=$(get_property "build.version.sdk" "$MODPATH_SYSTEM_PROP")
+  FIRST_API_LEVEL=$(get_property "first_api_level" "$MODPATH_SYSTEM_PROP")
+  # Fall back to build version if first_api wasn't found
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(get_property "build.version.sdk" "$MODPATH_SYSTEM_PROP")
   FINGERPRINT=$(get_property "build.fingerprint" "$MODPATH_SYSTEM_PROP")
   SECURITY_PATCH=$(get_property "build.security_patch" "$MODPATH_SYSTEM_PROP")
   BUILD_UTC=$(get_property "build.date.utc" "$MODPATH_SYSTEM_PROP")
