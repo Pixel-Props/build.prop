@@ -6,7 +6,7 @@ ui_print "- Building configuration file for PlayIntegrityFix"
 GOOGLE_APPS="com.google.android.gsf com.google.android.gms com.google.android.googlequicksearchbox"
 PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
 PIF_DIRS="/data/adb/pif.json $PIF_MODULE_DIR/pif.json"
-PIF_LIST="_comment MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT FIRST_API_LEVEL"
+PIF_LIST="_comment MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT FIRST_API_LEVEL BUILD_ID"
 
 # Function to build JSON object
 build_json() {
