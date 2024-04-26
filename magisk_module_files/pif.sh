@@ -6,16 +6,14 @@ ui_print "- Building configuration file for PlayIntegrityFix"
 GOOGLE_APPS="com.google.android.gsf com.google.android.gms com.google.android.googlequicksearchbox"
 PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
 PIF_DIRS="/data/adb/pif.json $PIF_MODULE_DIR/pif.json"
-PIF_LIST="_comment MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT FIRST_API_LEVEL"
+PIF_LIST="_comment MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT FIRST_API_LEVEL BUILD_ID"
 
 # Function to build JSON object
 build_json() {
   echo '{'
   for PROP in $PIF_LIST; do
-    printf "\"%s\": \"%s\"" "$PROP" "$(eval "echo \$$PROP")"
-    [ "$PROP" != "$PIF_LIST" ] && printf "," # Add comma if not the last property
-    echo
-  done
+    printf "\"%s\": \"%s\",\n" "$PROP" "$(eval "echo \$$PROP")"
+  done | sed '$s/,//'
   echo '}'
 }
 
@@ -39,7 +37,9 @@ main() {
   DEVICE=$(get_property "device" "$MODPATH_SYSTEM_PROP")
   PRODUCT=$(get_property "name" "$MODPATH_SYSTEM_PROP")
   BUILD_ID=$(get_property "build.id" "$MODPATH_SYSTEM_PROP")
-  FIRST_API_LEVEL=$(get_property "build.version.sdk" "$MODPATH_SYSTEM_PROP")
+  FIRST_API_LEVEL=$(get_property "first_api_level" "$MODPATH_SYSTEM_PROP")
+  # Fall back to build version if first_api wasn't found
+  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(get_property "build.version.sdk" "$MODPATH_SYSTEM_PROP")
   FINGERPRINT=$(get_property "build.fingerprint" "$MODPATH_SYSTEM_PROP")
   SECURITY_PATCH=$(get_property "build.security_patch" "$MODPATH_SYSTEM_PROP")
   BUILD_UTC=$(get_property "build.date.utc" "$MODPATH_SYSTEM_PROP")

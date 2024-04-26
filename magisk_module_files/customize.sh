@@ -3,6 +3,31 @@
 # Global variables
 export MODPATH_SYSTEM_PROP="$MODPATH"/system.prop
 
+# Functions
+# Function to get a property from file
+grep_prop() {
+    PROP="$1"
+    shift
+    FILES="$@"
+
+    [ -z "$FILES" ] && FILES="/system/build.prop /system_ext/etc/build.prop /vendor/build.prop /vendor/odm/etc/build.prop /product/etc/build.prop"
+    grep -m1 "^$PROP=" $FILES 2>/dev/null | cut -d= -f2- | head -n 1
+}
+
+# Function to proxy between multiple property value prefixes
+# TODO: Miss-checks some of the time FIX: (service.sh first_api_level)
+get_property() {
+    PROP="$1"
+    shift
+    FILES="$@"
+
+    PROPERTY_PREFIXES="ro ro.board ro.system ro.vendor ro.product ro.product.product ro.product.bootimage ro.product.vendor ro.product.odm ro.product.system ro.product.system_ext ro.product.system_ext"
+    for PREFIX in $PROPERTY_PREFIXES; do
+        value=$(grep_prop "$PREFIX.$PROP" "$FILES")
+        [ -n "$value" ] && echo "$value" && return
+    done
+}
+
 # Module variables
 MOD_PROP_MODEL=$(get_property model "$MODPATH_SYSTEM_PROP")
 MOD_PROP_PRODUCT=$(get_property build.product "$MODPATH_SYSTEM_PROP" | tr '[:lower:]' '[:upper:]')
