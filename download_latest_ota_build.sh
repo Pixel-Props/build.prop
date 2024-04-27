@@ -8,7 +8,10 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-print_message "Downloading OTA builds for the following devices: $(IFS=, ; echo "${*:1}")..." info
+print_message "Downloading OTA builds for the following devices: $(
+  IFS=,
+  echo "${*:1}"
+)…" info
 unset IFS
 
 # Make sure download directory exists
@@ -47,7 +50,7 @@ for device_name in "$@"; do # Loop over each argument (device name)
 
   if [[ -n $last_build_url ]]; then
     # Print a message indicating that the download is starting
-    print_message "Downloading OTA build for ${device_name^} (\"$last_build_url\")..." debug
+    print_message "Downloading OTA build for ${device_name^} (\"$last_build_url\")…" debug
 
     # Add the URL to the list.
     BUILD_URL_LIST+=("$last_build_url")

@@ -18,6 +18,6 @@ fi
 
 # Install imjtool if not already installed
 while [ ! -f "./imjtool" ]; do
-	print_message "./imjtool not found. Installing imjtool..." info
+	print_message "./imjtool not found. Installing imjtool…" info
 	wget --tries=inf --show-progress -q -O "imjtool" "http://newandroidbook.com/tools/imjtool"
 done

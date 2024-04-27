@@ -3,7 +3,7 @@
 # Global variables
 export MODPATH_SYSTEM_PROP="$MODPATH"/system.prop
 
-# Functions
+# TODO: Import the functions below within a file e.g META-INF (update-binary) for cleaner code.
 # Function to get a property from file
 grep_prop() {
     PROP="$1"

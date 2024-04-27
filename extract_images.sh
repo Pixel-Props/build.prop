@@ -10,26 +10,38 @@ EI_BP="${EI##"./"}"
 EAI_BP="${EAI##"./"}"
 
 # Extract payload as ota or system image if factory
-print_message "Extracting images from archives..." info
-for file in ./dl/*; do                                  # Iterate through files in the directory ./dl/*
-	if [ -f "$file" ] && [ "${file: -4}" == ".zip" ]; then # Check if it is a ZIP file
-		filename="${file##*/}"                                # Extract the filename (remove the path)
-		basename="${filename%.*}"                             # Extract the basename (remove the extension)
-		# devicename="${basename%%-*}"                          # Extract the device name (remove the extension)
-		print_message "Processing \"$filename\"..." info
+[ -d "dl" ] && print_message "Extracting images from the Android OTA update package or factory image…\n" info
+for file in ./dl/*; do                                      # Iterate through files in the directory ./dl/*
+	if [ -f "${file:?}" ] && [ "${file: -4}" == ".zip" ]; then # Check if it is a ZIP file
+		filename="${file##*/}"                                    # Extract the filename (remove the path)
+		basename="${filename%.*}"                                 # Extract the basename (remove the extension)
+		# devicename="${basename%%-*}"                              # Extract the device name (remove the extension)
+		print_message "Processing \"$filename\"…" info
 
 		# Time the extraction
 		extraction_start=$(date +%s)
 
 		# Extract images
-		if unzip -l "$file" | grep -q "payload.bin"; then # Presume if the image is OTA or Factory
-			print_message "Extracting OTA image..." debug
-			7z e "$file" -o"$EAI" "payload.bin" -r &>/dev/null
+		if unzip -l "$file" | grep -q "payload.bin"; then
+			print_message "Extracting OTA image…" debug
+
+			# Skip image if it failed to get extracted
+			if ! 7z e "$file" -o"$EAI" "payload.bin" -r &>/dev/null; then
+				print_message "Failed to extract payload.bin from $file using 7z. Skipping…\n" error
+				continue
+			fi
+
+			# If it managed to dump the payload then move it correspondingly.
 			mv -f "$EAI_BP/payload.bin" "$EAI/$basename.bin"
 			print_message "Saved to \"$EAI/$basename.bin\"." debug
-		else # else assume it is factory and extract everything
-			print_message "Extracting all Factory image..." debug
-			7z e "$file" -o"$EAI_BP" -r -y &>/dev/null
+		else
+			print_message "Detected Factory image, Extracting everything…" debug
+
+			# Skip image if it failed to get extracted
+			if ! 7z e "$file" -o"$EAI_BP" -r -y &>/dev/null; then
+				print_message "Failed to extract everything from $file. Skipping…" error
+				continue
+			fi
 		fi
 
 		# We dont need the archive anymore
@@ -40,30 +52,41 @@ for file in ./dl/*; do                                  # Iterate through files 
 		extraction_runtime=$((extraction_end - extraction_start))
 
 		# Print the time
-		print_message "Extraction time: $extraction_runtime seconds" debug
+		print_message "Extraction time: $extraction_runtime seconds\n" debug
 	fi
 done
 
 if [ -d "$EAI_BP" ]; then
 	if [ -n "$(ls -A "$EAI_BP"/*.{zip,bin} 2>/dev/null)" ]; then
-		print_message "\nDumping images from \"$EAI_BP\"..." info
+		print_message "Dumping images from \"$EAI_BP\"…\n" info
 
-		for file in "$EAI"/*.{zip,bin}; do                                     # List directory zip & bin files
-			if [ -f "$file" ] && [[ "$file" == *.zip || "$file" == *.bin ]]; then # Check if file is a zip or bin file
-				filename="${file##*/}"                                               # Remove the path
-				basename="${filename%.*}"                                            # Remove the extension
-				print_message "Processing \"$filename\"..." info
+		for file in "$EAI"/*.{zip,bin}; do                                         # List directory zip & bin files
+			if [ -f "${file:?}" ] && [[ "$file" == *.zip || "$file" == *.bin ]]; then # Check if file is a zip or bin file
+				filename="${file##*/}"                                                   # Remove the path
+				basename="${filename%.*}"                                                # Remove the extension
+				print_message "Processing \"$filename\"…" info
 
 				# Time the extraction
 				extraction_start=$(date +%s)
 
 				# Extract/Dump
 				if [ "${file: -4}" == ".bin" ]; then # If is payload use the Android OTA Dumper
-					python3 ota_dumper/extract_android_ota_payload.py "$file" "$EI_BP/$basename"
-				else # else directly extract the required images
+					# Skip image if it failed to get extracted
+					if ! python3 ota_dumper/extract_android_ota_payload.py "$file" "$EI_BP/$basename" 2>/dev/null; then
+						print_message "Failed to extract $file using Android OTA Dumper. Skipping…\n" error
+						rm -rf "$EI_BP/$basename" # TODO: Use "${var:?}" to ensure this never expands to / .
+						continue
+					fi
+				else # Else directly extract all the required image using 7z
 					for image_name in "${IMAGES2EXTRACT[@]}"; do
-						print_message "Extracting \"$image_name\"..." debug
-						7z e "$file" -o"$EI_BP/$basename" "$image_name.img" -r &>/dev/null
+						print_message "Extracting \"$image_name\"…" debug
+
+						# Skip image if it failed to get extracted
+						if ! 7z e "$file" -o"$EI_BP/$basename" "$image_name.img" -r &>/dev/null; then
+							print_message "Failed to extract $image_name.img from $file using 7z. Skipping…\n" error
+							rm -rf "$EI_BP/$basename/$image_name.img"
+							continue
+						fi
 					done
 				fi
 
@@ -75,20 +98,20 @@ if [ -d "$EAI_BP" ]; then
 				extraction_runtime=$((extraction_end - extraction_start))
 
 				# Print the time
-				print_message "Extraction time: $extraction_runtime seconds" debug
+				print_message "Extraction time: $extraction_runtime seconds\n" debug
 			fi
 		done
 	else
-		print_message "\nThe directory \"$EAI_BP\" does not have any ZIP or BIN files." error
+		print_message "The directory \"$EAI_BP\" does not have any ZIP or BIN files.\n" error
 	fi
 fi
 
 # Extract the images directories
-print_message "\nExtracting images..." info
+[ -d "$EI" ] && print_message "Extracting images…\n" info
 for dir in "$EI"/*; do  # List directory ./*
 	if [ -d "$dir" ]; then # Check if it is a directory
 		dir=${dir%*/}         # Remove last /
-		print_message "Processing \"${dir##*/}\"..." info
+		print_message "Processing \"${dir##*/}\"…" info
 
 		# Time the extraction
 		extraction_start=$(date +%s)
@@ -106,10 +129,10 @@ for dir in "$EI"/*; do  # List directory ./*
 		extraction_runtime=$((extraction_end - extraction_start))
 
 		# Print the extraction time
-		print_message "Extraction time: $extraction_runtime seconds" debug
+		print_message "Extraction time: $extraction_runtime seconds\n" debug
 
 		# Build system.prop
-		print_message "\nBuilding props..." info
+		print_message "Building props…" info
 		./build_props.sh "$dir"
 	fi
 done

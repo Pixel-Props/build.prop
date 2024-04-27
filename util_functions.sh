@@ -46,7 +46,7 @@ install_packages() {
     fi
 
     if [ "$is_installed" -eq 0 ]; then
-      print_message "Installing $package..." info
+      print_message "Installing $package…" info
       $package_manager install -y "$package" >/dev/null 2>&1
       print_message "$package installed successfully." info
     fi
@@ -69,7 +69,7 @@ install_pip_packages() {
 
       # Proceed with installation or print message
       if [ -z "$is_installed" ]; then
-        print_message "Installing $package_with_version using pip3..." info
+        print_message "Installing $package_with_version using pip3…" info
         pip3 install --ignore-installed --upgrade --force-reinstall "$package_with_version" >/dev/null 2>&1
         print_message "$package_with_version installed successfully." info
       fi

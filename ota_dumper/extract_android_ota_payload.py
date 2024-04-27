@@ -117,7 +117,7 @@ def parse_payload(payload_f, partition, out_f):
 
 def main(filename, output_dir):
     if filename.endswith('.zip'):
-        print("\033[0;32mExtracting 'payload.bin' from OTA file...\033[0m")
+        print("\033[0;32mExtracting 'payload.bin' from OTA file…\033[0m")
         ota_zf = zipfile.ZipFile(filename)
         payload_file = open(ota_zf.extract('payload.bin', output_dir), 'rb')
     else:
@@ -129,7 +129,7 @@ def main(filename, output_dir):
     for p in payload.manifest.partitions:
         if p.partition_name in REQUIRED_IMAGE_FOR_PROPS:
             name = p.partition_name + '.img'
-            print("\033[0;36mDumping \"%s\"...\033[0m" % name)
+            print("\033[0;36mDumping \"%s\"…\033[0m" % name)
             fname = os.path.join(output_dir, name)
             out_f = open(fname, 'wb')
             try:
