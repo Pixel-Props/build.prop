@@ -1,31 +1,60 @@
-# build.prop
-Bash script to convert Pixel OTA builds to a system props.
+# Pixel Prop Builder: Streamlined OTA to Build.prop Conversion
 
-## How to use
-Simply drag and drop your images into the workspace directory and execute `extract_images.sh`.
+Effortlessly extract and manage system properties from Pixel OTA updates with this robust automation suite. Designed for developers and enthusiasts alike, it simplifies the process of accessing and customizing Android build properties.
 
-### Where to get images
-Images can be found from the [Google Android Images](https://developers.google.com/android/images) or [Google Beta OTA Images](https://developer.android.com/about/versions/14/download-ota) page.
+## 🚀 Quick Start & Requirements Integration
 
-Additionally, you can also use the `download_latest_ota_build.sh` utility with an arguments of the name of the devices you are trying to download from:
-```sh
-$ ./download_latest_ota_build.sh husky felix_beta cheetah
-```
+### Environment Setup & Acquisition
 
+- Ensure a Unix-like environment with **Bash**.
+- Install **core utilities**: `dos2unix`, `wget`, `aria2`, `zip`, `unzip`, `p7zip`, `curl`, `jq`, and Python ^3.10.
+   ```bash
+   # Install python3.12
+   sudo add-apt-repository ppa:deadsnakes/ppa -y
+   sudo apt-get update
+   sudo apt-get install python3.12 python3.12-venv python3.12-distutils
+   # Install python-pip
+   wget https://bootstrap.pypa.io/get-pip.py && python3.12 get-pip.py && rm get-pip.py
+   ```
 
-## To-do
-### I would appreciate your attention and assistance in accomplishing my to-do goals.
-- [x] Downloads latest OTA Image from [Google Full OTA Images](https://developers.google.cn/android/ota) and [Google Beta OTA Images](https://developer.android.com/about/versions/14/download-ota).
-- [x] Check for dependencies
-- [x] Extract factory images
-- [x] Extract OTA images
-- [x] Build props
-- [x] Use of GitHub Actions to automate the update/commit/push/release process on schedule
-  - [x] Previous release checker (to check for duplicates, via git notes)
-- [x] Use of GitHub Actions to automate the release of props on the Telegram Channel
-- [ ] Develop a Zygisk library or executable to retrieve the Play Integrity verdict
-  - [ ] Implement automation for PlayIntegrityFix
-- [ ] ~~Download latest factory image from [Google Android Images](https://developers.google.com/android/images)~~
+- Clone the project alongside its submodules:
+    ```bash
+    git clone https://github.com/Pixel-Props/build.prop --recurse
+    ```
 
-## Disclaimer
-This code is provided for educational purposes and should be used responsibly. While it is used in GitHub Actions and other production environments, it is important to understand and verify the code before using it in your own projects. Always ensure that the code complies with all relevant regulations and best practices for security and reliability. The author(s) and contributors of this code are not responsible for any issues or damages that may arise from its use.
+- Install payload_dumper
+    ```bash
+    python3.12 -m pip install payload_dumper/
+    ```
+
+1. **Obtain Pixel Images:** Download the desired factory or OTA images from [Google Android Images](https://developers.google.com/android/images) or the [Beta OTA Pages](https://developer.android.com/about/versions/14/download-ota).
+2. **Effortless Extraction:**
+   - Place the downloaded image files within the project's workspace.
+   - Execute `./extract_images.sh` to automatically extract build properties.
+3. **Stay Up-to-Date:**
+   - Fetch the latest OTA images with `./download_latest_ota_build.sh <device_name1> <device_name2> ...` (e.g., `husky`, `felix_beta`, `cheetah`, `akita_beta15`).
+
+## ✨ Key Features
+
+- **Automated OTA Acquisition:**  Downloads the most recent builds directly from Google's official sources.
+- **Seamless Image Extraction:**  Supports both factory and OTA images for versatile usage.
+- **Build Prop Generation:**  Effortlessly converts extracted images into organized build.prop files.
+- **GitHub Actions Integration:**
+  - **Scheduled Workflows:**  Configure automated updates, builds, and releases.
+    - **Duplicate Release Prevention:**  Intelligent checks prevent redundant releases.
+    - **Telegram Notifications:**  Stay informed about build processes with timely updates.
+- **Future Enhancements:**
+  - **PlayIntegrityFix Integration:**  Planned support for enhanced app integrity checks (under development).
+
+## 📝 Responsible Usage Guidelines
+
+This project is provided for educational and experimental purposes. While designed for efficiency, it's crucial to use this tool responsibly.
+
+- **Code Review:**  Thoroughly review and understand the code before deploying it in any environment.
+- **Security Best Practices:**  Adhere to industry standards for security and legal compliance.
+
+The creators of this project are not liable for any misuse or damages resulting from its use.
+
+---
+
+Ready to streamline your Android customization workflow? Dive in and unlock the power of automated build.prop extraction! Contributions are welcome to enhance the project's functionality and scope.

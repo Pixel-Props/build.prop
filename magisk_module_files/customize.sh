@@ -3,7 +3,7 @@
 # Global variables
 export MODPATH_SYSTEM_PROP="$MODPATH"/system.prop
 
-# TODO: Import the functions below within a file e.g META-INF (update-binary) for cleaner code.
+# TODO: Import the functions below within a file e.g META-INF (update-binary) for cleaner code structure.
 # Function to get a property from file
 grep_prop() {
     PROP="$1"
@@ -47,4 +47,4 @@ ui_print "- Installing, $MOD_PROP_MODEL ($MOD_PROP_PRODUCT) Prop - $MOD_PROP_MON
 [ -f "$MODPATH/service.sh" ] && . "$MODPATH"/service.sh
 
 # Print footer message
-ui_print "- Script by Tesla, Telegram: @T3SL4"
+ui_print "- Script by Tesla, Telegram: @T3SL4 | t.me/PixelProps"

@@ -53,33 +53,6 @@ install_packages() {
   done
 }
 
-# Function to find and install Python packages using pip3
-install_pip_packages() {
-  local pip_packages=("$@")
-
-  # Check if python3-pip is available
-  if command -v pip3 >/dev/null 2>&1; then
-    for package_with_version in "${pip_packages[@]}"; do
-      # Extract package name and version from input
-      local package=$(echo "$package_with_version" | cut -d'=' -f1)
-      local version=$(echo "$package_with_version" | cut -d'=' -f2-)
-
-      # Check if the Python package is already installed using pip show
-      local is_installed=$(pip3 show "$package" | grep -E "^(Name:|Version:) $package$|^Version: $version$")
-
-      # Proceed with installation or print message
-      if [ -z "$is_installed" ]; then
-        print_message "Installing $package_with_version using pip3…" info
-        pip3 install --ignore-installed --upgrade --force-reinstall "$package_with_version" >/dev/null 2>&1
-        print_message "$package_with_version installed successfully." info
-      fi
-    done
-  else
-    print_message "Error: pip3 is not available. You can install it by running 'apt install python3-pip'." error
-    return 1
-  fi
-}
-
 grep_prop() {
   PROP="$1"
   shift

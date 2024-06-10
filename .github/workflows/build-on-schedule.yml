@@ -36,7 +36,7 @@ jobs:
     strategy:
       matrix:
         # Devices to build props for
-        device_name: [husky, shiba, cheetah, raven, redfin]
+        device_name: [akita, husky, shiba, cheetah, raven, redfin]
 
     runs-on: ubuntu-latest
     steps:
@@ -46,12 +46,23 @@ jobs:
       - name: Install APT packages
         uses: daaku/gh-action-apt-install@v4
         with:
-          packages: dos2unix python3 python3-pip zip aria2
+          packages: wget dos2unix zip p7zip aria2
 
-      - name: Install protobuf
+      - name: Add deadsnakes PPA and install Python 3.12
         run: |
-          pip install --upgrade pip
-          pip3 install -Iv protobuf==3.20.3
+          sudo add-apt-repository ppa:deadsnakes/ppa
+          sudo apt-get update
+          sudo apt-get install python3.12 python3.12-dev python3.12-venv python3.12-distutils
+
+      - name: Install pip for Python 3.12
+        run: |
+          wget https://bootstrap.pypa.io/get-pip.py
+          sudo python3.12 get-pip.py
+          rm get-pip.py
+
+      - name: Install payload_dumper
+        run: |
+          python3.12 -m pip install payload_dumper/
 
       - name: Make all scripts executable
         run: chmod +x *.sh

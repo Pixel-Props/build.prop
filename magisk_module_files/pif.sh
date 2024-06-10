@@ -6,7 +6,7 @@ ui_print "- Building configuration file for PlayIntegrityFix"
 GOOGLE_APPS="com.google.android.gsf com.google.android.gms com.google.android.googlequicksearchbox"
 PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
 PIF_DIRS="/data/adb/pif.json $PIF_MODULE_DIR/pif.json"
-PIF_LIST="_comment MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT FIRST_API_LEVEL BUILD_ID"
+PIF_LIST="_comment MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT RELEASE ID INCREMENTAL DEVICE_INITIAL_SDK_INT TYPE TAGS"
 
 # Function to build JSON object
 build_json() {
@@ -35,15 +35,18 @@ main() {
   BRAND=$(get_property "brand" "$MODPATH_SYSTEM_PROP")
   MANUFACTURER=$(get_property "manufacturer" "$MODPATH_SYSTEM_PROP")
   DEVICE=$(get_property "device" "$MODPATH_SYSTEM_PROP")
+  RELEASE=$(get_property "version.release" "$MODPATH_SYSTEM_PROP")
+  ID=$(get_property "build.id" "$MODPATH_SYSTEM_PROP")
+  INCREMENTAL=$(get_property "version.incremental" "$MODPATH_SYSTEM_PROP")
   PRODUCT=$(get_property "name" "$MODPATH_SYSTEM_PROP")
-  BUILD_ID=$(get_property "build.id" "$MODPATH_SYSTEM_PROP")
-  FIRST_API_LEVEL=$(get_property "first_api_level" "$MODPATH_SYSTEM_PROP")
-  # Fall back to build version if first_api wasn't found
-  [ -z "$FIRST_API_LEVEL" ] && FIRST_API_LEVEL=$(get_property "build.version.sdk" "$MODPATH_SYSTEM_PROP")
+  DEVICE_INITIAL_SDK_INT=$(get_property "first_api_level" "$MODPATH_SYSTEM_PROP")
+  [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(get_property "build.version.sdk" "$MODPATH_SYSTEM_PROP")
   FINGERPRINT=$(get_property "build.fingerprint" "$MODPATH_SYSTEM_PROP")
   SECURITY_PATCH=$(get_property "build.security_patch" "$MODPATH_SYSTEM_PROP")
   BUILD_UTC=$(get_property "build.date.utc" "$MODPATH_SYSTEM_PROP")
   [ "$BUILD_UTC" -gt 1520257020 ] && PIF_LIST="$PIF_LIST SECURITY_PATCH" # < March 2018 build date required
+  TYPE=$(get_property "build.type" "$MODPATH_SYSTEM_PROP")
+  TAGS=$(get_property "build.tags" "$MODPATH_SYSTEM_PROP")
 
   # Set to false by default
   FORCE_PIF_SPOOF=false

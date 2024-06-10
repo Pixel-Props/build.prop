@@ -72,7 +72,7 @@ if [ -d "$EAI_BP" ]; then
 				# Extract/Dump
 				if [ "${file: -4}" == ".bin" ]; then # If is payload use the Android OTA Dumper
 					# Skip image if it failed to get extracted
-					if ! python3 ota_dumper/extract_android_ota_payload.py "$file" "$EI_BP/$basename" 2>/dev/null; then
+					if ! payload_dumper "$file" --partitions="$(IFS=,; echo "${IMAGES2EXTRACT[*]}")" --out="$EI_BP/$basename" 2>/dev/null; then
 						print_message "Failed to extract $file using Android OTA Dumper. Skipping…\n" error
 						rm -rf "$EI_BP/$basename" # TODO: Use "${var:?}" to ensure this never expands to / .
 						continue
