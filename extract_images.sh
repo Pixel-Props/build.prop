@@ -72,13 +72,16 @@ if [ -d "$EAI_BP" ]; then
 				# Extract/Dump
 				if [ "${file: -4}" == ".bin" ]; then # If is payload use the Android OTA Dumper
 					# Skip image if it failed to get extracted
-					if ! payload_dumper "$file" --partitions="$(IFS=,; echo "${IMAGES2EXTRACT[*]}")" --out="$EI_BP/$basename" 2>/dev/null; then
+					if ! payload_dumper "$file" --partitions="$(
+						IFS=,
+						echo "${PARTITIONS2EXTRACT[*]}"
+					)" --out="$EI_BP/$basename" 2>/dev/null; then
 						print_message "Failed to extract $file using Android OTA Dumper. Skipping…\n" error
 						rm -rf "$EI_BP/$basename" # TODO: Use "${var:?}" to ensure this never expands to / .
 						continue
 					fi
 				else # Else directly extract all the required image using 7z
-					for image_name in "${IMAGES2EXTRACT[@]}"; do
+					for image_name in "${PARTITIONS2EXTRACT[@]}"; do
 						print_message "Extracting \"$image_name\"…" debug
 
 						# Skip image if it failed to get extracted
@@ -117,7 +120,7 @@ for dir in "$EI"/*; do  # List directory ./*
 		extraction_start=$(date +%s)
 
 		# Extract all and clean
-		for image_name in "${IMAGES2EXTRACT[@]}"; do
+		for image_name in "${PARTITIONS2EXTRACT[@]}"; do
 			if [ -f "$dir/$image_name.img" ]; then
 				extract_image "$dir" "$image_name"
 				rm "$dir/$image_name.img"

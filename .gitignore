@@ -2,6 +2,7 @@ extracted_images/*
 extracted_archive_images/*
 result/*
 dl/*
+payload_dumper/*
 imjtool
 *.pyc
 *.img

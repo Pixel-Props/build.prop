@@ -1,53 +1,145 @@
 #!/bin/bash
 
 print_message() {
-  default_color="\033[0m"
+  message="$1"
+  level="$2"
+  datetime="\033[1;37m$(date +'%H:%M:%S')\033[0m"
 
   # Change the default color based on argument log level
-  if [ "$2" = "error" ]; then
-    default_color="\033[0;31m"
-  elif [ "$2" = "warning" ]; then
-    default_color="\033[0;33m"
-  elif [ "$2" = "info" ]; then
-    default_color="\033[0;32m"
-  elif [ "$2" = "debug" ]; then
-    default_color="\033[0;36m"
-  fi
+  case "$level" in
+  error)
+    message="[\033[1;31mERROR\033[0m] ($datetime) $message"
+    ;;
+  warning)
+    message="[\033[1;33mWARNING\033[0m] ($datetime) $message"
+    ;;
+  info)
+    message="[\033[1;32mINFO\033[0m] ($datetime) $message"
+    ;;
+  debug)
+    message="[\033[1;36mDEBUG\033[0m] ($datetime) $message"
+    ;;
+  *)
+    message="\033[1;37m$message\033[0m"
+    ;;
+  esac
 
   # Print the message
-  echo -e "${default_color}$1\033[0m"
+  echo -e "$message"
+
+  [ "$2" = "error" ] && {
+    exit 1
+  }
 }
 
-# Function to find and install packages by name using apt or pkg
+# Function to install packages by name using various package managers
 install_packages() {
   local package_names=("$@")
-  local package_manager=""
 
-  if command -v apt >/dev/null 2>&1; then
+  # Determine the appropriate package manager
+  local package_manager=""
+  if command -v apt-get >/dev/null 2>&1; then
+    package_manager="apt-get"
+  elif command -v apt >/dev/null 2>&1; then
     package_manager="apt"
+  elif command -v pacman >/dev/null 2>&1; then
+    package_manager="pacman"
+  elif command -v yum >/dev/null 2>&1; then
+    package_manager="yum"
+  elif command -v dnf >/dev/null 2>&1; then
+    package_manager="dnf"
+  elif command -v zypper >/dev/null 2>&1; then
+    package_manager="zypper"
   elif command -v pkg >/dev/null 2>&1; then
     package_manager="pkg"
   else
-    print_message "Error: Neither apt nor pkg is available on this system." error
+    print_message "Error: No supported package manager found on this system." error
     return 1
   fi
 
-  $package_manager update >/dev/null 2>&1
-
-  for package in "${package_names[@]}"; do
-    local is_installed
-    if [ "$package_manager" = "apt" ]; then
-      is_installed=$(dpkg-query -W --showformat='${Status}\n' "$package" 2>/dev/null | grep -c "install ok installed")
-    elif [ "$package_manager" = "pkg" ]; then
-      is_installed=$(
-        pkg info "$package" >/dev/null 2>&1
-        echo $?
-      )
+  # Determine if root/sudo privileges are available
+  local use_sudo=false
+  if [[ $EUID -ne 0 ]]; then
+    if command -v sudo >/dev/null 2>&1; then
+      use_sudo=true
+    else
+      print_message "Error: This script requires root privileges (sudo) to install packages." error
+      return 1
     fi
+  fi
 
-    if [ "$is_installed" -eq 0 ]; then
-      print_message "Installing $package…" info
-      $package_manager install -y "$package" >/dev/null 2>&1
+  # Function to execute a command with optional sudo
+  run_command() {
+    if $use_sudo; then
+      sudo "$@"
+    else
+      "$@"
+    fi
+  }
+
+  # Update package lists (if applicable)
+  case "$package_manager" in
+  apt-get | apt | yum | dnf | zypper)
+    run_command $package_manager update -y >/dev/null 2>&1
+    ;;
+  pacman)
+    run_command $package_manager -Sy >/dev/null 2>&1
+    ;;
+  esac
+
+  # Install packages
+  for package in "${package_names[@]}"; do
+    local is_installed=1 # Assume package is NOT installed initially
+
+    # Check if the package is already installed
+    case "$package_manager" in
+    apt-get | apt)
+      # CORRECT: Check for "install ok installed"
+      is_installed=$(dpkg-query -W --showformat='${Status}\n' "$package" 2>/dev/null | grep -c "install ok installed")
+      ;;
+    pacman)
+      # Check the exit code, 0 means installed
+      if pacman -Q "$package" >/dev/null 2>&1; then
+        is_installed=0
+      fi
+      ;;
+    yum | dnf)
+      # Check the exit code, 0 means installed
+      if rpm -q "$package" >/dev/null 2>&1; then
+        is_installed=0
+      fi
+      ;;
+    zypper)
+      is_installed=$(zypper -q info "$package" 2>/dev/null | grep -c "Installed")
+      ;;
+    pkg)
+      # Check the exit code, 0 means installed
+      if pkg info "$package" >/dev/null 2>&1; then
+        is_installed=0
+      fi
+      ;;
+    esac
+
+    # Install the package if it's not already installed
+    if [ "$is_installed" -ne 1 ]; then
+      print_message "Installing $package..." info
+      case "$package_manager" in
+      apt-get | apt)
+        run_command $package_manager install -y "$package" >/dev/null 2>&1
+        ;;
+      pacman)
+        run_command $package_manager -S --noconfirm "$package" >/dev/null 2>&1
+        ;;
+      yum | dnf)
+        run_command $package_manager install -y "$package" >/dev/null 2>&1
+        ;;
+      zypper)
+        run_command $package_manager install -y "$package" >/dev/null 2>&1
+        ;;
+      pkg)
+        run_command $package_manager install -y "$package" >/dev/null 2>&1
+        ;;
+      esac
       print_message "$package installed successfully." info
     fi
   done
@@ -141,7 +233,7 @@ build_prop() {
   local prop_value=$(grep_prop "$prop_name" "$prop_path")
 
   if [ -z "$prop_value" ]; then
-    print_message "\"$prop_name\" not found in \"$prop_path\"" error
+    print_message "\"$prop_name\" not found in \"$prop_path\"" warning
     return 1
   fi
 
