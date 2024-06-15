@@ -60,9 +60,12 @@ jobs:
           sudo python3.12 get-pip.py
           rm get-pip.py
 
+      - name: Checkout submodules
+        id: submodule_checkout
+        run: git submodule update --init --recursive
+
       - name: Install payload_dumper
-        run: |
-          python3.12 -m pip install payload_dumper/
+        run: python3.12 -m pip install ./payload_dumper/
 
       - name: Make all scripts executable
         run: chmod +x *.sh
