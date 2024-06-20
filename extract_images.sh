@@ -71,11 +71,14 @@ if [ -d "$EAI_BP" ]; then
 
 				# Extract/Dump
 				if [ "${file: -4}" == ".bin" ]; then # If is payload use the Android OTA Dumper
-					# Skip image if it failed to get extracted
-					if ! payload_dumper "$file" --partitions="$(
+					# Format the patitions to dump for argument usage
+					partitionsArgs="$(
 						IFS=,
-						echo "${PARTITIONS2EXTRACT[*]}"
-					)" --out="$EI_BP/$basename" 2>/dev/null; then
+						"${PARTITIONS2EXTRACT[*]}"
+					)"
+
+					# Skip image if it failed to get extracted
+					if ! payload_dumper "$file" --partitions="$partitionsArgs" --out="$EI_BP/$basename" 2>/dev/null; then
 						print_message "Failed to extract $file using Android OTA Dumper. Skipping…\n" error
 						rm -rf "$EI_BP/$basename" # TODO: Use "${var:?}" to ensure this never expands to / .
 						continue

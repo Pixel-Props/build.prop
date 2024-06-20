@@ -145,14 +145,33 @@ install_packages() {
   done
 }
 
+# Function to find build & system properties within a specified directory.
+find_prop_files() {
+  dir="$1"
+  prop_files=()
+
+  while IFS= read -r -d '' file; do
+    if [[ "$file" == */build.prop || "$file" == */system.prop ]]; then
+      prop_files+=("${file}")
+    fi
+  done < <(find "$dir" -type f -print0)
+
+  echo "${prop_files[@]}"
+}
+
+# Function to grep a property value from a list of files
 grep_prop() {
   PROP="$1"
   shift
-  FILES="$@"
+  FILES_or_VAR="$@"
 
-  # TODO: FILES Probably need a fix?
-  [ -z "$FILES" ] && FILES="/system/build.prop /system_ext/etc/build.prop /vendor/build.prop /vendor/odm/etc/build.prop /product/etc/build.prop"
-  grep -m1 "^$PROP=" $FILES 2>/dev/null | cut -d= -f2- | head -n 1
+  # if it's a file, use grep normally
+  # else just echo the content from a variable.
+  if [[ -f "$FILES_or_VAR" ]]; then
+    grep -m1 "^$PROP=" "$FILES_or_VAR" 2>/dev/null | cut -d= -f2- | head -n 1
+  else
+    echo "$FILES_or_VAR" | grep -m1 "^$PROP=" 2>/dev/null | cut -d= -f2- | head -n 1
+  fi
 }
 
 # Function to proxy between multiple property value prefixes
@@ -163,8 +182,11 @@ get_property() {
 
   PROPERTY_PREFIXES="ro ro.board ro.system ro.vendor ro.product ro.product.product ro.product.bootimage ro.product.vendor ro.product.odm ro.product.system ro.product.system_ext ro.product.system_ext"
   for PREFIX in $PROPERTY_PREFIXES; do
-    value=$(grep_prop "$PREFIX.$PROP" "$FILES")
-    [ -n "$value" ] && echo "$value" && return
+    name="$PREFIX.$PROP"
+    value=$(grep_prop "$name" "$FILES")
+
+    # If we find a value we suppose that we know both name and value.
+    [ -n "$value" ] && echo "$name=$value" && return
   done
 }
 
@@ -195,49 +217,28 @@ add_prop_as_ini() {
   fi
 
   if [ -z "$2" ]; then
-    print_message "No property name provided" error
+    print_message "No property name provided for $2" error
     return 1
   fi
 
   if [ -z "$3" ]; then
-    print_message "No property value provided" error
+    print_message "No property value provided for $2" error
     return 1
   fi
 
   "$1" "$2=$3"
 }
 
-build_prop() {
-  if [ -z "$1" ] || [[ $(type -t "$1") != function ]]; then
-    print_message "Invalid function name provided for building props" error
-    return 1
-  fi
-
-  # make sure file exist
-  if [ ! -f "$2" ]; then
-    print_message "File $2 does not exist" error
-    return 1
-  fi
-  if [ -z "$2" ] || [ ! -f "$2" ]; then
-    print_message "Please provide a valid prop path file" error
-    return 1
-  fi
-
-  if [ -z "$3" ]; then
-    print_message "No property name provided" error
-    return 1
-  fi
-
-  local prop_path="$2"
-  local prop_name="$3"
-  local prop_value=$(grep_prop "$prop_name" "$prop_path")
+build_system_prop() {
+  prop_name="$1"
+  prop_value=$(grep_prop "$prop_name" "$EXT_PROP_CONTENT")
 
   if [ -z "$prop_value" ]; then
-    print_message "\"$prop_name\" not found in \"$prop_path\"" warning
+    print_message "\"$prop_name\" not found" warning
     return 1
   fi
 
-  add_prop_as_ini to_system_prop "$prop_name" "$prop_value"
+  add_prop_as_ini "to_system_prop" "$prop_name" "$prop_value"
 }
 
 extract_image() {

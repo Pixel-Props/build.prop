@@ -18,11 +18,10 @@
 }
 
 # Define the props path
-product_path="$dir/extracted/product/etc/build.prop"
-vendor_path="$dir/extracted/vendor/build.prop"
-vendor_odm_path="$dir/extracted/vendor/odm/etc/build.prop"
-system_path="$dir/extracted/system/system/build.prop"
-system_ext_path="$dir/extracted/system_ext/etc/build.prop"
+declare EXT_PROP_FILES=$(find_prop_files "$dir")
+
+# Store the content of all prop files in a variable
+declare EXT_PROP_CONTENT=$(cat $EXT_PROP_FILES)
 
 # Building props config from there
 system_prop=""
@@ -47,52 +46,52 @@ to_system_prop "##
 ###
 
 # begin common build properties"
-add_prop_as_ini to_system_prop "ro.product.brand" "$(grep_prop "ro.product.vendor.brand" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.product.device" "$(grep_prop "ro.product.vendor.device" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.product.manufacturer" "$(grep_prop "ro.product.vendor.manufacturer" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.product.model" "$(grep_prop "ro.product.vendor.model" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.product.name" "$(grep_prop "ro.product.vendor.name" "$vendor_path")"
-build_prop to_system_prop "$product_path" "ro.product.product.brand"
-build_prop to_system_prop "$product_path" "ro.product.product.device"
-build_prop to_system_prop "$product_path" "ro.product.product.manufacturer"
-build_prop to_system_prop "$product_path" "ro.product.product.model"
-build_prop to_system_prop "$product_path" "ro.product.product.name"
-build_prop to_system_prop "$product_path" "ro.product.name_for_attestation"
-build_prop to_system_prop "$product_path" "ro.product.build.date"
-build_prop to_system_prop "$product_path" "ro.product.build.date.utc"
-build_prop to_system_prop "$product_path" "ro.product.build.fingerprint"
-build_prop to_system_prop "$product_path" "ro.product.build.id"
-build_prop to_system_prop "$product_path" "ro.product.build.tags"
-build_prop to_system_prop "$product_path" "ro.product.build.type"
-build_prop to_system_prop "$product_path" "ro.product.build.version.incremental"
-build_prop to_system_prop "$product_path" "ro.product.build.version.release"
-build_prop to_system_prop "$product_path" "ro.product.build.version.release_or_codename"
-build_prop to_system_prop "$product_path" "ro.product.build.version.sdk"
+add_prop_as_ini to_system_prop "ro.product.brand" "$(grep_prop "ro.product.vendor.brand" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.product.device" "$(grep_prop "ro.product.vendor.device" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.product.manufacturer" "$(grep_prop "ro.product.vendor.manufacturer" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.product.model" "$(grep_prop "ro.product.vendor.model" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.product.name" "$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")"
+build_system_prop "ro.product.product.brand"
+build_system_prop "ro.product.product.device"
+build_system_prop "ro.product.product.manufacturer"
+build_system_prop "ro.product.product.model"
+build_system_prop "ro.product.product.name"
+build_system_prop "ro.product.name_for_attestation"
+build_system_prop "ro.product.build.date"
+build_system_prop "ro.product.build.date.utc"
+build_system_prop "ro.product.build.fingerprint"
+build_system_prop "ro.product.build.id"
+build_system_prop "ro.product.build.tags"
+build_system_prop "ro.product.build.type"
+build_system_prop "ro.product.build.version.incremental"
+build_system_prop "ro.product.build.version.release"
+build_system_prop "ro.product.build.version.release_or_codename"
+build_system_prop "ro.product.build.version.sdk"
 to_system_prop "# end common build properties
 
 # begin PRODUCT_PRODUCT_PROPERTIES"
-build_prop to_system_prop "$product_path" "ro.support_one_handed_mode"
-build_prop to_system_prop "$product_path" "ro.opa.eligible_device"
-build_prop to_system_prop "$product_path" "ro.com.google.ime.theme_id"
-build_prop to_system_prop "$product_path" "ro.com.google.ime.system_lm_dir"
+build_system_prop "ro.support_one_handed_mode"
+build_system_prop "ro.opa.eligible_device"
+build_system_prop "ro.com.google.ime.theme_id"
+build_system_prop "ro.com.google.ime.system_lm_dir"
 to_system_prop "# end PRODUCT_PRODUCT_PROPERTIES
 
 # begin PRODUCT_BOOTIMAGE_PROPERTIES"
-add_prop_as_ini to_system_prop "ro.product.bootimage.brand" "$(grep_prop "ro.product.vendor.brand" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.product.bootimage.device" "$(grep_prop "ro.product.vendor.device" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.product.bootimage.manufacturer" "$(grep_prop "ro.product.vendor.manufacturer" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.product.bootimage.model" "$(grep_prop "ro.product.vendor.model" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.product.bootimage.name" "$(grep_prop "ro.product.vendor.name" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.date" "$(grep_prop "ro.vendor.build.date" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.date.utc" "$(grep_prop "ro.vendor.build.date.utc" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.fingerprint" "$(grep_prop "ro.vendor.build.fingerprint" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.id" "$(grep_prop "ro.vendor.build.id" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.tags" "$(grep_prop "ro.vendor.build.tags" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.type" "$(grep_prop "ro.vendor.build.type" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.version.incremental" "$(grep_prop "ro.vendor.build.version.incremental" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.version.release" "$(grep_prop "ro.vendor.build.version.release" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.version.release_or_codename" "$(grep_prop "ro.vendor.build.version.release_or_codename" "$vendor_path")"
-add_prop_as_ini to_system_prop "ro.bootimage.build.version.sdk" "$(grep_prop "ro.vendor.build.version.sdk" "$vendor_path")"
+add_prop_as_ini to_system_prop "ro.product.bootimage.brand" "$(grep_prop "ro.product.vendor.brand" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.product.bootimage.device" "$(grep_prop "ro.product.vendor.device" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.product.bootimage.manufacturer" "$(grep_prop "ro.product.vendor.manufacturer" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.product.bootimage.model" "$(grep_prop "ro.product.vendor.model" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.product.bootimage.name" "$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.date" "$(grep_prop "ro.vendor.build.date" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.date.utc" "$(grep_prop "ro.vendor.build.date.utc" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.fingerprint" "$(grep_prop "ro.vendor.build.fingerprint" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.id" "$(grep_prop "ro.vendor.build.id" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.tags" "$(grep_prop "ro.vendor.build.tags" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.type" "$(grep_prop "ro.vendor.build.type" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.version.incremental" "$(grep_prop "ro.vendor.build.version.incremental" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.version.release" "$(grep_prop "ro.vendor.build.version.release" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.version.release_or_codename" "$(grep_prop "ro.vendor.build.version.release_or_codename" "$EXT_PROP_CONTENT")"
+add_prop_as_ini to_system_prop "ro.bootimage.build.version.sdk" "$(grep_prop "ro.vendor.build.version.sdk" "$EXT_PROP_CONTENT")"
 to_system_prop "# end PRODUCT_BOOTIMAGE_PROPERTIES
 
 ###
@@ -108,36 +107,36 @@ to_system_prop "# end PRODUCT_BOOTIMAGE_PROPERTIES
 ###
 
 # begin common build properties"
-build_prop to_system_prop "$vendor_path" "ro.product.vendor.brand"
-build_prop to_system_prop "$vendor_path" "ro.product.vendor.device"
-build_prop to_system_prop "$vendor_path" "ro.product.vendor.manufacturer"
-build_prop to_system_prop "$vendor_path" "ro.product.vendor.model"
-build_prop to_system_prop "$vendor_path" "ro.product.vendor.name"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.date"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.date.utc"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.fingerprint"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.id"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.tags"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.type"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.version.incremental"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.version.release"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.version.release_or_codename"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.version.sdk"
+build_system_prop "ro.product.vendor.brand"
+build_system_prop "ro.product.vendor.device"
+build_system_prop "ro.product.vendor.manufacturer"
+build_system_prop "ro.product.vendor.model"
+build_system_prop "ro.product.vendor.name"
+build_system_prop "ro.vendor.build.date"
+build_system_prop "ro.vendor.build.date.utc"
+build_system_prop "ro.vendor.build.fingerprint"
+build_system_prop "ro.vendor.build.id"
+build_system_prop "ro.vendor.build.tags"
+build_system_prop "ro.vendor.build.type"
+build_system_prop "ro.vendor.build.version.incremental"
+build_system_prop "ro.vendor.build.version.release"
+build_system_prop "ro.vendor.build.version.release_or_codename"
+build_system_prop "ro.vendor.build.version.sdk"
 to_system_prop "# end common build properties
 
 # begin PRODUCT_VENDOR_PROPERTIES"
-# add_prop_as_ini to_system_prop "ro.hardware" "$(grep_prop "ro.product.vendor.device" "$vendor_path")"
-# build_prop to_system_prop "$vendor_path" "ro.hardware.egl"
-# build_prop to_system_prop "$vendor_path" "ro.hardware.vulkan"
-build_prop to_system_prop "$vendor_path" "ro.soc.model"
-build_prop to_system_prop "$vendor_path" "ro.soc.manufacturer"
+# add_prop_as_ini to_system_prop "ro.hardware" "$(grep_prop "ro.product.vendor.device" "$EXT_PROP_CONTENT")"
+# build_system_prop "ro.hardware.egl"
+# build_system_prop "ro.hardware.vulkan"
+build_system_prop "ro.soc.model"
+build_system_prop "ro.soc.manufacturer"
 to_system_prop "# end PRODUCT_VENDOR_PROPERTIES
 
 # begin ADDITIONAL_VENDOR_PROPERTIES"
-# build_prop to_system_prop "$vendor_path" "ro.product.board"
-build_prop to_system_prop "$vendor_path" "ro.product.first_api_level"
-build_prop to_system_prop "$vendor_path" "ro.vendor.build.security_patch"
-# build_prop to_system_prop "$vendor_path" "ro.board.platform"
+# build_system_prop "ro.product.board"
+build_system_prop "ro.product.first_api_level"
+build_system_prop "ro.vendor.build.security_patch"
+# build_system_prop "ro.board.platform"
 to_system_prop "# end ADDITIONAL_VENDOR_PROPERTIES
 
 # begin PRODUCT_PROPERTY_OVERRIDES
@@ -163,21 +162,21 @@ ro.incremental.enable=true
 ###
 
 # begin common build properties"
-build_prop to_system_prop "$vendor_odm_path" "ro.product.odm.brand"
-build_prop to_system_prop "$vendor_odm_path" "ro.product.odm.device"
-build_prop to_system_prop "$vendor_odm_path" "ro.product.odm.manufacturer"
-build_prop to_system_prop "$vendor_odm_path" "ro.product.odm.model"
-build_prop to_system_prop "$vendor_odm_path" "ro.product.odm.name"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.date"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.date.utc"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.fingerprint"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.id"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.tags"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.type"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.version.incremental"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.version.release"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.version.release_or_codename"
-build_prop to_system_prop "$vendor_odm_path" "ro.odm.build.version.sdk"
+build_system_prop "ro.product.odm.brand"
+build_system_prop "ro.product.odm.device"
+build_system_prop "ro.product.odm.manufacturer"
+build_system_prop "ro.product.odm.model"
+build_system_prop "ro.product.odm.name"
+build_system_prop "ro.odm.build.date"
+build_system_prop "ro.odm.build.date.utc"
+build_system_prop "ro.odm.build.fingerprint"
+build_system_prop "ro.odm.build.id"
+build_system_prop "ro.odm.build.tags"
+build_system_prop "ro.odm.build.type"
+build_system_prop "ro.odm.build.version.incremental"
+build_system_prop "ro.odm.build.version.release"
+build_system_prop "ro.odm.build.version.release_or_codename"
+build_system_prop "ro.odm.build.version.sdk"
 to_system_prop "# end common build properties
 
 ###
@@ -193,45 +192,45 @@ to_system_prop "# end common build properties
 ###
 
 # begin common build properties"
-build_prop to_system_prop "$system_path" "ro.product.system.brand"
-build_prop to_system_prop "$system_path" "ro.product.system.device"
-build_prop to_system_prop "$system_path" "ro.product.system.manufacturer"
-build_prop to_system_prop "$system_path" "ro.product.system.model"
-build_prop to_system_prop "$system_path" "ro.product.system.name"
-build_prop to_system_prop "$system_path" "ro.system.build.date"
-build_prop to_system_prop "$system_path" "ro.system.build.date.utc"
-build_prop to_system_prop "$system_path" "ro.system.build.fingerprint"
-build_prop to_system_prop "$system_path" "ro.system.build.id"
-build_prop to_system_prop "$system_path" "ro.system.build.tags"
-build_prop to_system_prop "$system_path" "ro.system.build.type"
-build_prop to_system_prop "$system_path" "ro.system.build.version.incremental"
-build_prop to_system_prop "$system_path" "ro.system.build.version.release"
-build_prop to_system_prop "$system_path" "ro.system.build.version.release_or_codename"
-build_prop to_system_prop "$system_path" "ro.system.build.version.sdk"
+build_system_prop "ro.product.system.brand"
+build_system_prop "ro.product.system.device"
+build_system_prop "ro.product.system.manufacturer"
+build_system_prop "ro.product.system.model"
+build_system_prop "ro.product.system.name"
+build_system_prop "ro.system.build.date"
+build_system_prop "ro.system.build.date.utc"
+build_system_prop "ro.system.build.fingerprint"
+build_system_prop "ro.system.build.id"
+build_system_prop "ro.system.build.tags"
+build_system_prop "ro.system.build.type"
+build_system_prop "ro.system.build.version.incremental"
+build_system_prop "ro.system.build.version.release"
+build_system_prop "ro.system.build.version.release_or_codename"
+build_system_prop "ro.system.build.version.sdk"
 to_system_prop "# end common build properties
 
 # begin build properties"
-build_prop to_system_prop "$system_path" "ro.build.date"
-build_prop to_system_prop "$system_path" "ro.build.date.utc"
-add_prop_as_ini to_system_prop "ro.build.fingerprint" "$(grep_prop "ro.system.build.fingerprint" "$system_path")"
-build_prop to_system_prop "$system_path" "ro.build.id"
-build_prop to_system_prop "$system_path" "ro.build.display.id"
-build_prop to_system_prop "$system_path" "ro.build.type"
-build_prop to_system_prop "$system_path" "ro.build.user"
-build_prop to_system_prop "$system_path" "ro.build.host"
-build_prop to_system_prop "$system_path" "ro.build.tags"
-build_prop to_system_prop "$system_path" "ro.build.flavor"
-build_prop to_system_prop "$system_path" "ro.build.product"
-build_prop to_system_prop "$system_path" "ro.build.description"
-build_prop to_system_prop "$system_path" "ro.build.version.incremental"
-build_prop to_system_prop "$system_path" "ro.build.version.sdk"
-build_prop to_system_prop "$system_path" "ro.build.version.release"
-build_prop to_system_prop "$system_path" "ro.build.version.release_or_codename"
-build_prop to_system_prop "$system_path" "ro.build.version.security_patch"
+build_system_prop "ro.build.date"
+build_system_prop "ro.build.date.utc"
+add_prop_as_ini to_system_prop "ro.build.fingerprint" "$(grep_prop "ro.system.build.fingerprint" "$EXT_PROP_CONTENT")"
+build_system_prop "ro.build.id"
+build_system_prop "ro.build.display.id"
+build_system_prop "ro.build.type"
+build_system_prop "ro.build.user"
+build_system_prop "ro.build.host"
+build_system_prop "ro.build.tags"
+build_system_prop "ro.build.flavor"
+build_system_prop "ro.build.product"
+build_system_prop "ro.build.description"
+build_system_prop "ro.build.version.incremental"
+build_system_prop "ro.build.version.sdk"
+build_system_prop "ro.build.version.release"
+build_system_prop "ro.build.version.release_or_codename"
+build_system_prop "ro.build.version.security_patch"
 to_system_prop "# end build properties
 
 # begin PRODUCT_SYSTEM_PROPERTIES"
-build_prop to_system_prop "$system_path" "ro.hotword.detection_service_required"
+build_system_prop "ro.hotword.detection_service_required"
 to_system_prop "#end PRODUCT_SYSTEM_PROPERTIES
 
 ###
@@ -247,21 +246,21 @@ to_system_prop "#end PRODUCT_SYSTEM_PROPERTIES
 ###
 
 # begin common build properties"
-build_prop to_system_prop "$system_ext_path" "ro.product.system_ext.brand"
-build_prop to_system_prop "$system_ext_path" "ro.product.system_ext.device"
-build_prop to_system_prop "$system_ext_path" "ro.product.system_ext.manufacturer"
-build_prop to_system_prop "$system_ext_path" "ro.product.system_ext.model"
-build_prop to_system_prop "$system_ext_path" "ro.product.system_ext.name"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.date"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.date.utc"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.fingerprint"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.id"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.tags"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.type"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.version.incremental"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.version.release"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.version.release_or_codename"
-build_prop to_system_prop "$system_ext_path" "ro.system_ext.build.version.sdk"
+build_system_prop "ro.product.system_ext.brand"
+build_system_prop "ro.product.system_ext.device"
+build_system_prop "ro.product.system_ext.manufacturer"
+build_system_prop "ro.product.system_ext.model"
+build_system_prop "ro.product.system_ext.name"
+build_system_prop "ro.system_ext.build.date"
+build_system_prop "ro.system_ext.build.date.utc"
+build_system_prop "ro.system_ext.build.fingerprint"
+build_system_prop "ro.system_ext.build.id"
+build_system_prop "ro.system_ext.build.tags"
+build_system_prop "ro.system_ext.build.type"
+build_system_prop "ro.system_ext.build.version.incremental"
+build_system_prop "ro.system_ext.build.version.release"
+build_system_prop "ro.system_ext.build.version.release_or_codename"
+build_system_prop "ro.system_ext.build.version.sdk"
 to_system_prop "# end common build properties
 
 ###
@@ -274,11 +273,11 @@ echo -n "${system_prop::-1}" >"$dir/system.prop"
 ###
 # Module Props
 ###
-device_name=$(grep_prop "ro.product.vendor.model" "$vendor_path")
-device_build_description=$(grep_prop "ro.build.description" "$system_path")
-device_code_name=$(grep_prop "ro.product.vendor.name" "$vendor_path")
-device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$vendor_path")
-device_build_fingerprint=$(grep_prop "ro.product.build.id" "$product_path")
+device_name=$(grep_prop "ro.product.vendor.model" "$EXT_PROP_CONTENT")
+device_build_description=$(grep_prop "ro.build.description" "$EXT_PROP_CONTENT")
+device_code_name=$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")
+device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$EXT_PROP_CONTENT")
+device_build_fingerprint=$(grep_prop "ro.product.build.id")
 
 add_prop_as_ini to_module_prop "id" "${device_code_name^}_Prop"
 add_prop_as_ini to_module_prop "name" "$device_name (${device_code_name^^}) Prop"
@@ -299,5 +298,5 @@ print_message "Built props for $device_name [$device_build_description]!" info
 print_message "Props saved to \"${dir}\"" debug
 
 # Build Magisk module
-print_message "\nBuilding module…" info
+print_message "Building module…" info
 ./build_magisk_module.sh "$dir"

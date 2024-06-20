@@ -17,35 +17,40 @@
 	exit 1
 }
 
-# Extract device information
-result_base_name=$(basename "$dir")
-system_prop_path="$dir/system.prop"
+# Current basename
+base_name=$(basename "$dir")
 
-device_name=$(grep_prop "ro.product.model" "$system_prop_path")
-device_build_id=$(grep_prop "ro.build.id" "$system_prop_path")
-device_codename=$(grep_prop "ro.product.vendor.name" "$system_prop_path")
-device_build_description=$(grep_prop "ro.build.description" "$system_prop_path")
-device_build_android_version=$(grep_prop "ro.vendor.build.version.release" "$system_prop_path")
-device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$system_prop_path")
+# Define the props path
+declare EXT_PROP_FILES=$(find_prop_files "$dir")
+
+# Store the content of all prop files in a variable
+declare EXT_PROP_CONTENT=$(cat $EXT_PROP_FILES)
+
+device_name=$(grep_prop "ro.product.model" "$EXT_PROP_CONTENT")
+device_build_id=$(grep_prop "ro.build.id" "$EXT_PROP_CONTENT")
+device_codename=$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")
+device_build_description=$(grep_prop "ro.build.description" "$EXT_PROP_CONTENT")
+device_build_android_version=$(grep_prop "ro.vendor.build.version.release" "$EXT_PROP_CONTENT")
+device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$EXT_PROP_CONTENT")
 device_codename=${device_codename^}
 
 # Construct the base name
 base_name="${device_codename}_$device_build_id"
 
-# Prepare the result directory
-mkdir -p "result/$result_base_name"
-cp "$dir"/{module,system}.prop "result/$result_base_name/"
-cp -r ./magisk_module_files/* "result/$result_base_name/"
+# Copy relevant files
+cp "$dir"/{module,system}.prop "result/$base_name/"
+cp -r ./magisk_module_files/* "result/$base_name/"
 
-# Create the zip file
-cd "result/$result_base_name" || exit 1
+# Archive the module as zip
+cd "result/$base_name" || exit 1
 zip -r -q "../../$base_name".zip .
 cd ../..
-print_message "Module saved to $base_name.zip" debug
-module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')
 
-# Save the build information (only for the latest build)
-if [ -n "$GITHUB_OUTPUT" ]; then
+module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')
+print_message "Module saved to \"$base_name.zip\" ($module_hash)\n" debug
+
+# Save build information for GitHub output
+if [[ -n "$GITHUB_OUTPUT" ]]; then
 	{
 		echo "module_base_name=$base_name"
 		echo "module_hash=$module_hash"
