@@ -7,14 +7,14 @@ Effortlessly extract and manage system properties from Pixel OTA updates with th
 ### Environment Setup & Acquisition
 
 - Ensure a Unix-like environment with **Bash**.
-- Install **core utilities**: `dos2unix`, `wget`, `aria2`, `zip`, `unzip`, `p7zip`, `curl`, `jq`, and Python ^3.10.
+- Install **core utilities**: `dos2unix`, `aria2`, `zip`, `unzip`, `p7zip`, `curl`, `jq`, and Python ^3.10.
    ```bash
    # Install python3.12
    sudo add-apt-repository ppa:deadsnakes/ppa -y
    sudo apt-get update
    sudo apt-get install python3.12 python3.12-venv python3.12-distutils
    # Install python-pip
-   wget https://bootstrap.pypa.io/get-pip.py && python3.12 get-pip.py && rm get-pip.py
+   aria2c https://bootstrap.pypa.io/get-pip.py && python3.12 get-pip.py && rm get-pip.py
    ```
 
 - Clone the project alongside its submodules:

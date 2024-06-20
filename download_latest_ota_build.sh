@@ -61,5 +61,6 @@ for device_name in "$@"; do # Loop over each argument (device name)
 done
 
 # Download the build using aria2
-aria2c -Z -m0 -x16 -s16 -j16 --enable-rpc=false --optimize-concurrent-downloads=true --disable-ipv6=true --allow-overwrite=true --remove-control-file=true --always-resume=true --download-result=full --summary-interval=0 -d ./dl "${BUILD_URL_LIST[@]}"
+# aria2c -Z -m0 -x16 -s16 -j16 --enable-rpc=false --optimize-concurrent-downloads=true --disable-ipv6=true --allow-overwrite=true --remove-control-file=true --always-resume=true --download-result=full --summary-interval=0 -d ./dl "${BUILD_URL_LIST[@]}"
+aria2c -d ./dl "${BUILD_URL_LIST[@]}"
 print_message "Download complete" info

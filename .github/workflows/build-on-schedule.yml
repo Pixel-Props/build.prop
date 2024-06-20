@@ -46,7 +46,7 @@ jobs:
       - name: Install APT packages
         uses: daaku/gh-action-apt-install@v4
         with:
-          packages: wget dos2unix zip p7zip aria2
+          packages: dos2unix zip p7zip aria2
 
       - name: Install Python 3.12
         run: |
@@ -56,8 +56,8 @@ jobs:
 
       - name: Install pip for Python 3.12
         run: |
-          wget https://bootstrap.pypa.io/get-pip.py
-          sudo python3.12 get-pip.py
+          aria2c https://bootstrap.pypa.io/get-pip.py
+          python3.12 get-pip.py
           rm get-pip.py
 
       - name: Checkout submodules
