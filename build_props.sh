@@ -277,7 +277,7 @@ device_name=$(grep_prop "ro.product.vendor.model" "$EXT_PROP_CONTENT")
 device_build_description=$(grep_prop "ro.build.description" "$EXT_PROP_CONTENT")
 device_code_name=$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$EXT_PROP_CONTENT")
-device_build_fingerprint=$(grep_prop "ro.product.build.id")
+device_build_fingerprint=$(grep_prop "ro.product.build.id" "$EXT_PROP_CONTENT")
 
 add_prop_as_ini to_module_prop "id" "${device_code_name^}_Prop"
 add_prop_as_ini to_module_prop "name" "$device_name (${device_code_name^^}) Prop"
