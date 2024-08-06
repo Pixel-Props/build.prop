@@ -19,10 +19,9 @@
 
 # Current basename
 base_name=$(basename "$dir")
-
+echo $base_name
 # Define the props path
 declare EXT_PROP_FILES=$(find_prop_files "$dir")
-
 # Store the content of all prop files in a variable
 declare EXT_PROP_CONTENT=$(cat $EXT_PROP_FILES)
 
@@ -37,6 +36,11 @@ device_codename=${device_codename^}
 # Construct the base name
 base_name="${device_codename}_$device_build_id"
 
+if [ ! -d "result/$base_name" ]; then
+    mkdir -p "result/$base_name"
+fi
+
+echo "$dir"/{module,system}.prop
 # Copy relevant files
 cp "$dir"/{module,system}.prop "result/$base_name/"
 cp -r ./magisk_module_files/* "result/$base_name/"
