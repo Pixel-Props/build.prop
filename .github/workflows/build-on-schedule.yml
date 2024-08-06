@@ -47,7 +47,7 @@ jobs:
 
       - name: Install APT packages
         run: |
-          apt install -y dos2unix
+          sudo apt install -y dos2unix
 
       - name: Activate venv
         run: |
