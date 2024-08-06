@@ -27,9 +27,9 @@ print_message() {
   # Print the message
   echo -e "$message"
 
-  [ "$2" = "error" ] && {
+  if [ "$2" = "error" ]; then
     exit 1
-  }
+  fi
 }
 
 # Function to install packages by name using various package managers

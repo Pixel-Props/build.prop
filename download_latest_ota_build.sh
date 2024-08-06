@@ -15,7 +15,7 @@ print_message "Downloading OTA builds for the following devices: $(
 unset IFS
 
 # Make sure download directory exists
-[ ! -d ./dl ] && mkdir dl
+mkdir -p "dl"
 
 # Build a list of URL to be downloaded
 BUILD_URL_LIST=()

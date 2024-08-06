@@ -3,7 +3,7 @@ name: Build props (on schedule)
 on:
   workflow_dispatch:
   schedule:
-    - cron: '37 13 7 * *' # At 13:37 on day-of-month 7. (UTC)
+    - cron: "37 13 7 * *" # At 13:37 on day-of-month 7. (UTC)
 
 jobs:
   prepare_build:
@@ -38,34 +38,25 @@ jobs:
         # Devices to build props for
         device_name: [akita, husky, shiba, cheetah, raven, redfin]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install APT packages
-        uses: daaku/gh-action-apt-install@v4
-        with:
-          packages: dos2unix zip p7zip aria2
-
-      - name: Install Python 3.12
         run: |
-          sudo add-apt-repository ppa:deadsnakes/ppa -y
-          sudo apt-get update -y
-          sudo apt-get install -y python3.12 python3.12-dev python3.12-venv python3.12-distutils
+          apt install -y dos2unix
 
-      - name: Install pip for Python 3.12
+      - name: Activate venv
         run: |
-          aria2c https://bootstrap.pypa.io/get-pip.py
-          python3.12 get-pip.py
-          rm get-pip.py
-
-      - name: Checkout submodules
-        id: submodule_checkout
-        run: git submodule update --init --recursive
+          python3.12 -m venv .venv/
+          . .venv/bin/activate
+          echo PATH=$PATH >> "$GITHUB_ENV"
 
       - name: Install payload_dumper
-        run: python3.12 -m pip install ./payload_dumper/
+        run: pip install ./payload_dumper/
 
       - name: Make all scripts executable
         run: chmod +x *.sh

@@ -36,6 +36,7 @@ device_codename=${device_codename^}
 
 # Construct the base name
 base_name="${device_codename}_$device_build_id"
+mkdir -p "result/$base_name/"
 
 # Copy relevant files
 cp "$dir"/{module,system}.prop "result/$base_name/"
