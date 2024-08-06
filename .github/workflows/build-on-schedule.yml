@@ -46,7 +46,7 @@ jobs:
       - name: Install APT packages
         uses: daaku/gh-action-apt-install@v4
         with:
-          packages: dos2unix zip p7zip aria2
+          packages: dos2unix zip p7zip
 
       - name: Install Python 3.12
         run: |
@@ -59,6 +59,9 @@ jobs:
           aria2c https://bootstrap.pypa.io/get-pip.py
           python3.12 get-pip.py
           rm get-pip.py
+          
+      - name: Install dependencies
+        run: pip install -r req.txt
 
       - name: Checkout submodules
         id: submodule_checkout
@@ -70,8 +73,8 @@ jobs:
       - name: Make all scripts executable
         run: chmod +x *.sh
 
-      - name: Download latest OTA build for ${{ matrix.device_name }}
-        run: ./download_latest_ota_build.sh ${{ matrix.device_name }}
+      - name: Run download.py ${{ matrix.device_name }}
+        run: python download.py ${{ matrix.device_name }}
 
       - name: Extract images and build
         id: extract_and_build
