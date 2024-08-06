@@ -16,8 +16,8 @@ jobs:
       - name: Determine tag name
         id: get_tag_name
         run: |
-          echo "tag_name=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
-          echo "friendly_tag_name=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+          echo "tag_name=$(date '+%Y%m%d')" >> $GITHUB_ENV
+          echo "friendly_tag_name=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Create a release
         id: create_release
@@ -25,19 +25,41 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.get_tag_name.outputs.tag_name }}
-          release_name: ${{ steps.get_tag_name.outputs.friendly_tag_name }}
+          tag_name: ${{ env.tag_name }}
+          release_name: ${{ env.friendly_tag_name }}
           draft: false
           prerelease: false
 
+  run_python:
+    name: Run download.py
+    needs: prepare_build
+    runs-on: ubuntu-latest
+    outputs:
+      device_names: ${{ steps.run_download.outputs.device_names }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r req.txt
+
+      - name: Run download.py
+        id: run_download
+        run: |
+          python download.py akita husky shiba cheetah raven redfin
+          echo "device_names=akita husky shiba cheetah raven redfin" >> $GITHUB_ENV
+
   build:
     name: Build props
-    needs: prepare_build
+    needs: [prepare_build, run_python]
     strategy:
       matrix:
-        # Devices to build props for
         device_name: [akita, husky, shiba, cheetah, raven, redfin]
-
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,7 +68,7 @@ jobs:
       - name: Install APT packages
         uses: daaku/gh-action-apt-install@v4
         with:
-          packages: dos2unix zip p7zip aria2
+          packages: dos2unix zip p7zip-full
 
       - name: Install Python 3.12
         run: |
@@ -56,7 +78,7 @@ jobs:
 
       - name: Install pip for Python 3.12
         run: |
-          aria2c https://bootstrap.pypa.io/get-pip.py
+          curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
           python3.12 get-pip.py
           rm get-pip.py
 
@@ -70,24 +92,9 @@ jobs:
       - name: Make all scripts executable
         run: chmod +x *.sh
 
-      - name: Download latest OTA build for ${{ matrix.device_name }}
-        run: ./download_latest_ota_build.sh ${{ matrix.device_name }}
-
       - name: Extract images and build
         id: extract_and_build
         run: ./extract_images.sh
-
-      - name: Check if module build ID already exists
-        id: check_build_id
-        run: |
-          BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
-          BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
-          EXISTING_RELEASE_NOTES=$(curl --silent "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[].body')
-          if echo "$EXISTING_RELEASE_NOTES" | grep -q "${BASENAME}_${BUILD_ID}"; then
-            echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
-          else
-            echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT
-          fi
 
       - name: Upload files to release
         uses: actions/upload-release-asset@v1
@@ -98,7 +105,7 @@ jobs:
           asset_path: ./${{ steps.extract_and_build.outputs.module_base_name }}.zip
           asset_name: ${{ steps.extract_and_build.outputs.module_base_name }}.zip
           asset_content_type: application/zip
-        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
+        if: ${{ env.BUILD_EXISTS == 'false' }}
 
       - name: Add information to release
         uses: irongut/EditRelease@v1.2.0
@@ -113,18 +120,4 @@ jobs:
             - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`
             #### Firmware
             - Build Description: `${{ steps.extract_and_build.outputs.device_build_description }}`
-        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
-
-      - name: Send to Telegram
-        run: |
-          {
-            echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_codename }}';
-            echo '${{ steps.extract_and_build.outputs.device_build_description }}'
-          } > .tg_caption
-
-          curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \
-          -H "Content-Type: multipart/form-data" \
-          -F "chat_id=${{ secrets.CHANNEL_ID }}" \
-          -F "document=@${{ steps.extract_and_build.outputs.module_base_name }}.zip;type=application/zip" \
-          -F "caption=$(cat .tg_caption)"
-        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
+        if: ${{ env.BUILD_EXISTS == 'false' }}
