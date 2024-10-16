@@ -7,7 +7,7 @@ echo "- Building configuration file for PlayIntegrityFix / TrickyStore"
 GOOGLE_APPS="com.google.android.gsf com.google.android.gms com.google.android.googlequicksearchbox"
 PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
 PIF_DIRS="$MODPATH/pif.json $PIF_MODULE_DIR/pif.json"
-PIF_LIST="DEBUG spoofProps spoofProvider spoofSignature MANUFACTURER BRAND MODEL DEVICE INCREMENTAL PRODUCT FINGERPRINT ID DEVICE_INITIAL_SDK_INT"
+PIF_LIST="DEBUG spoofProps spoofProvider spoofSignature MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT ID DEVICE_INITIAL_SDK_INT"
 
 # Function to find build & system properties within a specified directory.
 find_prop_files() {
@@ -66,10 +66,10 @@ PlayIntegrityFix() {
   MODEL=$(grep_prop "ro.product.model" "$MODPROP_CONTENT")
   BRAND=$(grep_prop "ro.product.brand" "$MODPROP_CONTENT")
   MANUFACTURER=$(grep_prop "ro.product.manufacturer" "$MODPROP_CONTENT")
-  DEVICE=$(grep_prop "ro.product.device" "$MODPROP_CONTENT")
+  DEVICE=$(grep_prop "ro.product.product.device" "$MODPROP_CONTENT")
   # RELEASE=$(grep_prop "ro.product.build.version.release" "$MODPROP_CONTENT")
   ID=$(grep_prop "ro.product.build.id" "$MODPROP_CONTENT")
-  INCREMENTAL=$(grep_prop "ro.product.build.version.incremental" "$MODPROP_CONTENT")
+  # INCREMENTAL=$(grep_prop "ro.build.version.incremental" "$MODPROP_CONTENT")
   PRODUCT=$(grep_prop "ro.product.product.name" "$MODPROP_CONTENT")
   DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
   [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
