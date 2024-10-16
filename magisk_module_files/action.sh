@@ -1,12 +1,41 @@
 #!/system/bin/sh
+MODPATH="${0%/*}"
 
-ui_print ""
-ui_print "- Building configuration file for PlayIntegrityFix / TrickyStore"
+echo ""
+echo "- Building configuration file for PlayIntegrityFix / TrickyStore"
 
 GOOGLE_APPS="com.google.android.gsf com.google.android.gms com.google.android.googlequicksearchbox"
 PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
-PIF_DIRS="${0%/*}/pif.json $PIF_MODULE_DIR/pif.json"
+PIF_DIRS="$MODPATH/pif.json $PIF_MODULE_DIR/pif.json"
 PIF_LIST="DEBUG spoofProps spoofProvider spoofSignature MANUFACTURER BRAND MODEL DEVICE INCREMENTAL PRODUCT FINGERPRINT ID DEVICE_INITIAL_SDK_INT"
+
+# Function to find build & system properties within a specified directory.
+find_prop_files() {
+  dir="$1"
+  maxdepth="$2"
+  maxdepth=${maxdepth:-3}
+
+  find "$dir" -maxdepth "$maxdepth" -type f \( -name 'build.prop' -o -name 'system.prop' \) -print 2>/dev/null
+}
+
+# Function to grep a property value from a list of files
+grep_prop() {
+  PROP="$1"
+  shift
+  FILES_or_VAR="$@"
+
+  if [ -n "$FILES_or_VAR" ]; then
+    echo "$FILES_or_VAR" | grep -m1 "^$PROP=" 2>/dev/null | cut -d= -f2- | head -n 1
+  fi
+}
+
+# Define the props path
+MODPROP_FILES=$(find_prop_files "$MODPATH/" 1)
+SYSPROP_FILES=$(find_prop_files "/" 2)
+
+# Store the content of all prop files in a variable
+MODPROP_CONTENT=$(echo "$MODPROP_FILES" | xargs cat)
+SYSPROP_CONTENT=$(echo "$SYSPROP_FILES" | xargs cat)
 
 # Function to build JSON object
 build_json() {
@@ -23,7 +52,7 @@ handle_google_apps() {
     su -c am force-stop "$google_app"
     # TODO: Automate sign-out from Device Activity #
     su -c pm clear "$google_app"
-    ui_print " ? Cleanned $google_app"
+    echo " ? Cleanned $google_app"
   done
   # settings get/put --user $(am get-current-user) secure android_id
 }
@@ -34,24 +63,24 @@ PlayIntegrityFix() {
   spoofProps=true
   spoofProvider=true
   spoofSignature=false
-  MODEL=$(get_property "model" "$MODPATH_SYSTEM_PROP")
-  BRAND=$(get_property "brand" "$MODPATH_SYSTEM_PROP")
-  MANUFACTURER=$(get_property "manufacturer" "$MODPATH_SYSTEM_PROP")
-  DEVICE=$(get_property "device" "$MODPATH_SYSTEM_PROP")
-  # RELEASE=$(get_property "version.release" "$MODPATH_SYSTEM_PROP")
-  ID=$(get_property "build.id" "$MODPATH_SYSTEM_PROP")
-  INCREMENTAL=$(get_property "version.incremental" "$MODPATH_SYSTEM_PROP")
-  PRODUCT=$(get_property "name" "$MODPATH_SYSTEM_PROP")
-  DEVICE_INITIAL_SDK_INT=$(get_property "first_api_level" "$MODPATH_SYSTEM_PROP")
-  [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(get_property "build.version.sdk" "$MODPATH_SYSTEM_PROP")
-  FINGERPRINT=$(get_property "build.fingerprint" "$MODPATH_SYSTEM_PROP")
-  SECURITY_PATCH=$(get_property "build.security_patch" "$MODPATH_SYSTEM_PROP")
-  # BUILD_UTC=$(get_property "build.date.utc" "$MODPATH_SYSTEM_PROP")
+  MODEL=$(grep_prop "ro.product.model" "$MODPROP_CONTENT")
+  BRAND=$(grep_prop "ro.product.brand" "$MODPROP_CONTENT")
+  MANUFACTURER=$(grep_prop "ro.product.manufacturer" "$MODPROP_CONTENT")
+  DEVICE=$(grep_prop "ro.product.device" "$MODPROP_CONTENT")
+  # RELEASE=$(grep_prop "ro.product.build.version.release" "$MODPROP_CONTENT")
+  ID=$(grep_prop "ro.product.build.id" "$MODPROP_CONTENT")
+  INCREMENTAL=$(grep_prop "ro.product.build.version.incremental" "$MODPROP_CONTENT")
+  PRODUCT=$(grep_prop "ro.product.product.name" "$MODPROP_CONTENT")
+  DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
+  [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
+  FINGERPRINT=$(grep_prop "ro.product.build.fingerprint" "$MODPROP_CONTENT")
+  SECURITY_PATCH=$(grep_prop "ro.vendor.build.security_patch" "$MODPROP_CONTENT")
+  # BUILD_UTC=$(grep_prop "ro.product.build.date.utc" "$MODPROP_CONTENT")
   # [ "$BUILD_UTC" -gt 1520257020 ] && PIF_LIST="$PIF_LIST SECURITY_PATCH" # < March 2018 build date required
-  # TYPE=$(get_property "build.type" "$MODPATH_SYSTEM_PROP")
-  # TAGS=$(get_property "build.tags" "$MODPATH_SYSTEM_PROP")
+  # TYPE=$(grep_prop "ro.product.build.type" "$MODPROP_CONTENT")
+  # TAGS=$(grep_prop "ro.product.build.tags" "$MODPROP_CONTENT")
 
-  ui_print " - Building PlayIntegrityFix (PIF.json) properties…"
+  echo " - Building PlayIntegrityFix (PIF.json) properties…"
 
   if [ -d "$PIF_MODULE_DIR" ]; then
     CWD_PIF="$(readlink -f "$PWD")/pif.json"
@@ -69,24 +98,24 @@ PlayIntegrityFix() {
     update_count=0
     for PIF_DIR in $PIF_DIRS; do
       if cmp "$CWD_PIF" "$PIF_DIR" >/dev/null; then # Compare new PIF with existing PIF file
-        ui_print " - No changes detected in \"$PIF_DIR\"."
+        echo " - No changes detected in \"$PIF_DIR\"."
       else
         mv "$PIF_DIR" "${PIF_DIR}.old"
         cp "$CWD_PIF" "$PIF_DIR"
-        ui_print " ++ Config file has been updated and saved to \"$PIF_DIR\""
+        echo " ++ Config file has been updated and saved to \"$PIF_DIR\""
         update_count=$((update_count + 1))
       fi
     done
 
     # Shoz instructions only after we modified the pif
     if [ $update_count -gt 0 ]; then
-      ui_print "  ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
-      ui_print "  ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
-      ui_print "  ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$MODEL\"."
-      ui_print "  ? More info: https://t.me/PixelProps/157"
+      echo "  ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
+      echo "  ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
+      echo "  ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$MODEL\"."
+      echo "  ? More info: https://t.me/PixelProps/157"
     fi
   else
-    ui_print " - PlayIntegritySpoof does not met device or is disabled."
+    echo " - PlayIntegritySpoof does not met device or is disabled."
 
     # Loop true each PIF dirs
     for PIF_DIR in $PIF_DIRS; do
@@ -95,7 +124,7 @@ PlayIntegrityFix() {
 
       # If the pif.json is missing then we create one from maintained project
       if [ ! -f "$PIF_DIR" ]; then
-        ui_print " ++ Missing $PIF_DIR, Downloading stable one for you."
+        echo " ++ Missing $PIF_DIR, Downloading stable one for you."
         wget -O -q --show-progress "$PIF_DIR" "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json"
       fi
     done
@@ -106,23 +135,22 @@ PlayIntegrityFix() {
 TrickyStoreTarget() {
   # Check if the directory tricky_store exists
   if [ -d "/data/adb/tricky_store" ]; then
-    ui_print " - Building TrickyStore (target.txt) packages…"
+    echo " - Building TrickyStore (target.txt) packages…"
 
     # Use pm list packages to get a list of installed packages
     PACKAGES=$(pm list packages | sed 's/package://g')
 
     # Check if your TEE is broken
     if grep -qE "^teeBroken=(true|1)$" /data/adb/tricky_store/tee_status; then
-      ui_print "  ! Hardware Attestation support not available (teeBroken=true)"
-      ui_print "  ! Fallback to Broken TEE Support mode (!)"
+      echo "  ! Hardware Attestation support not available (teeBroken=true)"
+      echo "  ! Fallback to Broken TEE Support mode (!)"
       # If teeBroken is true or 1, add "!" before each package name
       PACKAGES=$(echo "$PACKAGES" | sed 's/^/!/g')
     fi
 
     # Write the package list to the target file
     echo "$PACKAGES" >/data/adb/tricky_store/target.txt
-
-    ui_print " ++ Target file has been updated and saved to \"/data/adb/tricky_store/target.txt\""
+    echo " ++ Target file has been updated and saved to \"/data/adb/tricky_store/target.txt\""
   fi
 }
 
