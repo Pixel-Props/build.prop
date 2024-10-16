@@ -7,7 +7,7 @@ echo "- Building configuration file for PlayIntegrityFix / TrickyStore"
 GOOGLE_APPS="com.google.android.gsf com.google.android.gms com.google.android.googlequicksearchbox"
 PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
 PIF_DIRS="$MODPATH/pif.json $PIF_MODULE_DIR/pif.json"
-PIF_LIST="DEBUG spoofProps spoofProvider spoofSignature MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT ID DEVICE_INITIAL_SDK_INT"
+PIF_LIST="DEBUG spoofProps spoofProvider spoofSignature MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT ID SECURITY_PATCH DEVICE_INITIAL_SDK_INT TYPE TAGS"
 
 # Function to find build & system properties within a specified directory.
 find_prop_files() {
@@ -77,37 +77,59 @@ PlayIntegrityFix() {
   SECURITY_PATCH=$(grep_prop "ro.vendor.build.security_patch" "$MODPROP_CONTENT")
   # BUILD_UTC=$(grep_prop "ro.product.build.date.utc" "$MODPROP_CONTENT")
   # [ "$BUILD_UTC" -gt 1520257020 ] && PIF_LIST="$PIF_LIST SECURITY_PATCH" # < March 2018 build date required
-  # TYPE=$(grep_prop "ro.product.build.type" "$MODPROP_CONTENT")
-  # TAGS=$(grep_prop "ro.product.build.tags" "$MODPROP_CONTENT")
+  TYPE=$(grep_prop "ro.product.build.type" "$MODPROP_CONTENT")
+  TAGS=$(grep_prop "ro.product.build.tags" "$MODPROP_CONTENT")
 
   echo " - Building PlayIntegrityFix (PIF.json) properties…"
 
+  # Set location of pif.json to of the current working directory
+  CWD_PIF="$(readlink -f "$PWD")/pif.json"
+  shift
+
+  # Delete old CWD pif file
+  [ -f "$CWD_PIF" ] && rm -f "$CWD_PIF"
+
+  update_count=0
   if [ -d "$PIF_MODULE_DIR" ]; then
-    CWD_PIF="$(readlink -f "$PWD")/pif.json"
-    shift
+    case "$PRODUCT" in
+    *beta*)
+      echo " - Building PIF.json from current module properties…"
 
-    # Delete old CWD pif file
-    [ -f "$CWD_PIF" ] && rm -f "$CWD_PIF"
+      # Build the JSON object
+      build_json >"$CWD_PIF"
 
-    # Build the JSON object
-    build_json >"$CWD_PIF"
+      # Handle Google apps
+      # handle_google_apps
 
-    # Handle Google apps
-    # handle_google_apps
+      for PIF_DIR in $PIF_DIRS; do
+        if cmp "$CWD_PIF" "$PIF_DIR" >/dev/null; then # Compare new PIF with existing PIF file
+          echo " - No changes detected in \"$PIF_DIR\"."
+        else
+          mv "$PIF_DIR" "${PIF_DIR}.old"
+          cp "$CWD_PIF" "$PIF_DIR"
+          echo " ++ Config file has been updated and saved to \"$PIF_DIR\"."
+          update_count=$((update_count + 1))
+        fi
+      done
+      ;;
+    *)
+      echo " - Non BETA property, Downloading PIF.json in order to pass integrity…"
+      curl -L -o "$CWD_PIF" -# "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json"
 
-    update_count=0
-    for PIF_DIR in $PIF_DIRS; do
-      if cmp "$CWD_PIF" "$PIF_DIR" >/dev/null; then # Compare new PIF with existing PIF file
-        echo " - No changes detected in \"$PIF_DIR\"."
-      else
-        mv "$PIF_DIR" "${PIF_DIR}.old"
-        cp "$CWD_PIF" "$PIF_DIR"
-        echo " ++ Config file has been updated and saved to \"$PIF_DIR\""
-        update_count=$((update_count + 1))
-      fi
-    done
+      for PIF_DIR in $PIF_DIRS; do
+        if cmp "$CWD_PIF" "$PIF_DIR" >/dev/null; then # Compare new PIF with existing PIF file
+          echo " - No changes detected in \"$PIF_DIR\"."
+        else
+          mv "$PIF_DIR" "${PIF_DIR}.old"
+          cp "$CWD_PIF" "$PIF_DIR"
+          echo " ++ Config file has been updated and saved to \"$PIF_DIR\"."
+          update_count=$((update_count + 1))
+        fi
+      done
+      ;;
+    esac
 
-    # Shoz instructions only after we modified the pif
+    # Show instructions only after we modified the PIF
     if [ $update_count -gt 0 ]; then
       echo "  ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
       echo "  ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
@@ -115,19 +137,7 @@ PlayIntegrityFix() {
       echo "  ? More info: https://t.me/PixelProps/157"
     fi
   else
-    echo " - PlayIntegritySpoof does not met device or is disabled."
-
-    # Loop true each PIF dirs
-    for PIF_DIR in $PIF_DIRS; do
-      # If has backup restore it
-      [ -f "${PIF_DIR}.old" ] && mv "${PIF_DIR}.old" "$PIF_DIR"
-
-      # If the pif.json is missing then we create one from maintained project
-      if [ ! -f "$PIF_DIR" ]; then
-        echo " ++ Missing $PIF_DIR, Downloading stable one for you."
-        wget -O -q --show-progress "$PIF_DIR" "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json"
-      fi
-    done
+    echo " - PlayIntegrityFix not found in your modules."
   fi
 }
 
