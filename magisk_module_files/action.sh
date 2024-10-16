@@ -1,12 +1,12 @@
 #!/system/bin/sh
 
 ui_print ""
-ui_print "- Building configuration file for PlayIntegrityFix"
+ui_print "- Building configuration file for PlayIntegrityFix / TrickyStore"
 
 GOOGLE_APPS="com.google.android.gsf com.google.android.gms com.google.android.googlequicksearchbox"
 PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
-PIF_DIRS="/data/adb/pif.json $PIF_MODULE_DIR/pif.json"
-PIF_LIST="_comment MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT RELEASE ID INCREMENTAL DEVICE_INITIAL_SDK_INT TYPE TAGS"
+PIF_DIRS="${0%/*}/pif.json $PIF_MODULE_DIR/pif.json"
+PIF_LIST="DEBUG spoofProps spoofProvider spoofSignature MANUFACTURER BRAND MODEL DEVICE INCREMENTAL PRODUCT FINGERPRINT ID DEVICE_INITIAL_SDK_INT"
 
 # Function to build JSON object
 build_json() {
@@ -28,14 +28,17 @@ handle_google_apps() {
   # settings get/put --user $(am get-current-user) secure android_id
 }
 
-# Main script
-main() {
-  _comment="https://t.me/PixelProps"
+# PlayIntegrityFix (PIF.json)
+PlayIntegrityFix() {
+  DEBUG=false
+  spoofProps=true
+  spoofProvider=true
+  spoofSignature=false
   MODEL=$(get_property "model" "$MODPATH_SYSTEM_PROP")
   BRAND=$(get_property "brand" "$MODPATH_SYSTEM_PROP")
   MANUFACTURER=$(get_property "manufacturer" "$MODPATH_SYSTEM_PROP")
   DEVICE=$(get_property "device" "$MODPATH_SYSTEM_PROP")
-  RELEASE=$(get_property "version.release" "$MODPATH_SYSTEM_PROP")
+  # RELEASE=$(get_property "version.release" "$MODPATH_SYSTEM_PROP")
   ID=$(get_property "build.id" "$MODPATH_SYSTEM_PROP")
   INCREMENTAL=$(get_property "version.incremental" "$MODPATH_SYSTEM_PROP")
   PRODUCT=$(get_property "name" "$MODPATH_SYSTEM_PROP")
@@ -43,15 +46,14 @@ main() {
   [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(get_property "build.version.sdk" "$MODPATH_SYSTEM_PROP")
   FINGERPRINT=$(get_property "build.fingerprint" "$MODPATH_SYSTEM_PROP")
   SECURITY_PATCH=$(get_property "build.security_patch" "$MODPATH_SYSTEM_PROP")
-  BUILD_UTC=$(get_property "build.date.utc" "$MODPATH_SYSTEM_PROP")
-  [ "$BUILD_UTC" -gt 1520257020 ] && PIF_LIST="$PIF_LIST SECURITY_PATCH" # < March 2018 build date required
-  TYPE=$(get_property "build.type" "$MODPATH_SYSTEM_PROP")
-  TAGS=$(get_property "build.tags" "$MODPATH_SYSTEM_PROP")
+  # BUILD_UTC=$(get_property "build.date.utc" "$MODPATH_SYSTEM_PROP")
+  # [ "$BUILD_UTC" -gt 1520257020 ] && PIF_LIST="$PIF_LIST SECURITY_PATCH" # < March 2018 build date required
+  # TYPE=$(get_property "build.type" "$MODPATH_SYSTEM_PROP")
+  # TAGS=$(get_property "build.tags" "$MODPATH_SYSTEM_PROP")
 
-  # Set to false by default
-  FORCE_PIF_SPOOF=false
+  ui_print " - Building PlayIntegrityFix (PIF.json) properties…"
 
-  if [ -d "$PIF_MODULE_DIR" ] && { [[ "$FORCE_PIF_SPOOF" = "true" ]] || [[ "$PRODUCT" == *_beta ]]; }; then
+  if [ -d "$PIF_MODULE_DIR" ]; then
     CWD_PIF="$(readlink -f "$PWD")/pif.json"
     shift
 
@@ -71,7 +73,7 @@ main() {
       else
         mv "$PIF_DIR" "${PIF_DIR}.old"
         cp "$CWD_PIF" "$PIF_DIR"
-        ui_print " -+ Config file has been updated and saved to \"$PIF_DIR\""
+        ui_print " ++ Config file has been updated and saved to \"$PIF_DIR\""
         update_count=$((update_count + 1))
       fi
     done
@@ -93,12 +95,37 @@ main() {
 
       # If the pif.json is missing then we create one from maintained project
       if [ ! -f "$PIF_DIR" ]; then
-        ui_print " -+ Missing $PIF_DIR, Downloading stable one for you."
-        wget -O -q --show-progress "$PIF_DIR" "https://raw.githubusercontent.com/x1337cn/AutoPIF-Next/main/pif.json"
+        ui_print " ++ Missing $PIF_DIR, Downloading stable one for you."
+        wget -O -q --show-progress "$PIF_DIR" "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json"
       fi
     done
   fi
 }
 
-# Call main function
-main
+# TrickyStore (target.txt)
+TrickyStoreTarget() {
+  # Check if the directory tricky_store exists
+  if [ -d "/data/adb/tricky_store" ]; then
+    ui_print " - Building TrickyStore (target.txt) packages…"
+
+    # Use pm list packages to get a list of installed packages
+    PACKAGES=$(pm list packages | sed 's/package://g')
+
+    # Check if your TEE is broken
+    if grep -qE "^teeBroken=(true|1)$" /data/adb/tricky_store/tee_status; then
+      ui_print "  ! Hardware Attestation support not available (teeBroken=true)"
+      ui_print "  ! Fallback to Broken TEE Support mode (!)"
+      # If teeBroken is true or 1, add "!" before each package name
+      PACKAGES=$(echo "$PACKAGES" | sed 's/^/!/g')
+    fi
+
+    # Write the package list to the target file
+    echo "$PACKAGES" >/data/adb/tricky_store/target.txt
+
+    ui_print " ++ Target file has been updated and saved to \"/data/adb/tricky_store/target.txt\""
+  fi
+}
+
+# Calling functions
+PlayIntegrityFix
+TrickyStoreTarget

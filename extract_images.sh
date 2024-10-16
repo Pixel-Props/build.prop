@@ -72,10 +72,10 @@ if [ -d "$EAI_BP" ]; then
 				# Extract/Dump
 				if [ "${file: -4}" == ".bin" ]; then # If is payload use the Android OTA Dumper
 					# Format the patitions to dump for argument usage
-					partitionsArgs="$(
+					partitionsArgs=$(
 						IFS=,
-						"${PARTITIONS2EXTRACT[*]}"
-					)"
+						echo "${PARTITIONS2EXTRACT[*]}"
+					)
 
 					# Skip image if it failed to get extracted
 					if ! payload_dumper "$file" --partitions="$partitionsArgs" --out="$EI_BP/$basename" 2>/dev/null; then
@@ -140,5 +140,13 @@ for dir in "$EI"/*; do  # List directory ./*
 		# Build system.prop
 		print_message "Building props…" info
 		./build_props.sh "$dir"
+
+		# Build product sysconfig for Pixel Experience features
+		print_message "Building sysconfig features…" info
+		./build_sysconfig.sh "$dir"
+
+		# Build Magisk module
+		print_message "Building module…" info
+		./build_magisk_module.sh "$dir"
 	fi
 done

@@ -6,7 +6,12 @@ declare PARTITIONS2EXTRACT=("product" "vendor" "system" "system_ext")
 [[ $(type -t "print_message") != function ]] && . ./util_functions.sh
 
 # Install required packages and libs
-install_packages "zip" "p7zip" "dos2unix" "aria2" "python3.12"
+install_packages "zip" "p7zip" "dos2unix" "aria2"
+
+# Check whethever python was installed, TODO: Improve install_packages function.
+if ! command -v python3.12 >/dev/null 2>&1; then
+	install_packages "python3.12"
+fi
 
 # Check if python3.12 pip module installed
 python3.12 -m pip -V &>/dev/null || print_message "Could not find pip module in python3.12, To fix this issue simply aria2c and install https://bootstrap.pypa.io/get-pip.py from python3.12" error

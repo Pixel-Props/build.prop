@@ -10,7 +10,7 @@
 			dir=${dir%*/}                     # Remove last /
 			print_message "Processing \"${dir##*/}\"" debug
 
-			# Build system.prop
+			# Execute current script using first argument as dir
 			./"${BASH_SOURCE[0]}" "$dir"
 		fi
 	done
@@ -139,15 +139,16 @@ build_system_prop "ro.vendor.build.security_patch"
 # build_system_prop "ro.board.platform"
 to_system_prop "# end ADDITIONAL_VENDOR_PROPERTIES
 
-# begin PRODUCT_PROPERTY_OVERRIDES
-debug.sf.enable_sdr_dimming=1
-debug.sf.dim_in_gamma_in_enhanced_screenshots=1
-persist.vendor.enable.thermal.genl=true
-suspend.short_suspend_threshold_millis=2000
-suspend.max_sleep_time_millis=40000
-suspend.short_suspend_backoff_enabled=true
-ro.incremental.enable=true
-# end PRODUCT_PROPERTY_OVERRIDES
+# begin PRODUCT_PROPERTY_OVERRIDES"
+build_system_prop "debug.sf.enable_sdr_dimming"
+build_system_prop "debug.sf.dim_in_gamma_in_enhanced_screenshots"
+build_system_prop "persist.vendor.enable.thermal.genl"
+build_system_prop "suspend.short_suspend_threshold_millis"
+build_system_prop "suspend.max_sleep_time_millis"
+build_system_prop "suspend.short_suspend_backoff_enabled"
+build_system_prop "ro.incremental.enable"
+build_system_prop "ro.build.device_family"
+to_system_prop "# end PRODUCT_PROPERTY_OVERRIDES
 
 ###
 # end vendor/build.prop
@@ -278,6 +279,9 @@ device_build_description=$(grep_prop "ro.build.description" "$EXT_PROP_CONTENT")
 device_code_name=$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$EXT_PROP_CONTENT")
 device_build_fingerprint=$(grep_prop "ro.product.build.id" "$EXT_PROP_CONTENT")
+device_build_id=$(grep_prop "ro.build.id" "$EXT_PROP_CONTENT")
+device_codename=$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")
+base_name="${device_codename}_$device_build_id"
 
 add_prop_as_ini to_module_prop "id" "${device_code_name^}_Prop"
 add_prop_as_ini to_module_prop "name" "$device_name (${device_code_name^^}) Prop"
@@ -296,7 +300,3 @@ print_message "Built props for $device_name [$device_build_description]!" info
 
 # Display saving location
 print_message "Props saved to \"${dir}\"" debug
-
-# Build Magisk module
-print_message "Building module…" info
-./build_magisk_module.sh "$dir"

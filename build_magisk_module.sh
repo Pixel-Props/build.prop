@@ -10,7 +10,7 @@
 			dir=${dir%*/}                     # Remove last /
 			print_message "Processing \"${dir##*/}\"" debug
 
-			# Build system.prop
+			# Execute current script using first argument as dir
 			./"${BASH_SOURCE[0]}" "$dir"
 		fi
 	done
@@ -34,12 +34,14 @@ device_build_android_version=$(grep_prop "ro.vendor.build.version.release" "$EXT
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$EXT_PROP_CONTENT")
 device_codename=${device_codename^}
 
-# Construct the base name
+# Construct the result base
 base_name="${device_codename}_$device_build_id"
 mkdir -p "result/$base_name/"
+mkdir -p "result/$base_name/system/product/etc/"
 
 # Copy relevant files
 cp "$dir"/{module,system}.prop "result/$base_name/"
+cp -r "$dir"/sysconfig/ "result/$base_name/system/product/etc/"
 cp -r ./magisk_module_files/* "result/$base_name/"
 
 # Archive the module as zip
@@ -48,7 +50,7 @@ zip -r -q "../../$base_name".zip .
 cd ../..
 
 module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')
-print_message "Module saved to \"$base_name.zip\" ($module_hash)\n" debug
+print_message "Module saved to \"$base_name.zip\" ($module_hash)" debug
 
 # Save build information for GitHub output
 if [[ -n "$GITHUB_OUTPUT" ]]; then

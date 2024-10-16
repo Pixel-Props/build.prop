@@ -1,8 +1,8 @@
 #!/sbin/sh
 
-#################
-# Initialization
-#################
+##################
+# Initialization #
+##################
 
 umask 022
 
@@ -16,9 +16,9 @@ require_new_magisk() {
   exit 1
 }
 
-#########################
-# Load util_functions.sh
-#########################
+##########################
+# Load util_functions.sh #
+##########################
 
 OUTFD=$2
 ZIPFILE=$3
@@ -36,4 +36,20 @@ for i in $(find "$MODPATH" -type f -name "*.sh" -o -name "*.prop" -o -name "*.ru
 done
 
 install_module
+
+#############
+# OverlayFS #
+#############
+
+OVERLAY_IMAGE_EXTRA=0     # number of kb need to be added to overlay.img
+OVERLAY_IMAGE_SHRINK=true # shrink overlay.img or not?
+
+# Only use OverlayFS if Magisk_OverlayFS is installed
+if [ -f "/data/adb/modules/magisk_overlayfs/util_functions.sh" ] &&
+  /data/adb/modules/magisk_overlayfs/overlayfs_system --test; then
+  ui_print "- Added support for OverlayFS"
+  . /data/adb/modules/magisk_overlayfs/util_functions.sh
+  support_overlayfs && rm -rf "$MODPATH"/system
+fi
+
 exit 0

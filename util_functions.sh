@@ -122,7 +122,7 @@ install_packages() {
 
     # Install the package if it's not already installed
     if [ "$is_installed" -ne 1 ]; then
-      print_message "Installing $package..." info
+      print_message "Installing $package…" info
       case "$package_manager" in
       apt-get | apt)
         run_command $package_manager install -y "$package" >/dev/null 2>&1
