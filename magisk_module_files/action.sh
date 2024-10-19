@@ -1,6 +1,14 @@
 #!/system/bin/sh
 MODPATH="${0%/*}"
 
+# If MODPATH is empty or is not default modules path, use current path
+if [ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/'; then
+  MODPATH="$(dirname "$(readlink -f "$0")")"
+fi
+
+# Using util_functions.sh
+[ -f "$MODPATH"/util_functions.sh ] && . "$MODPATH"/util_functions.sh || abort "! util_functions.sh not found!"
+
 echo ""
 echo "- Building configuration file for PlayIntegrityFix / TrickyStore"
 
@@ -8,26 +16,6 @@ GOOGLE_APPS="com.google.android.gsf com.google.android.gms com.google.android.go
 PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
 PIF_DIRS="$MODPATH/pif.json $PIF_MODULE_DIR/pif.json"
 PIF_LIST="DEBUG spoofProps spoofProvider spoofSignature MANUFACTURER BRAND MODEL DEVICE PRODUCT FINGERPRINT ID SECURITY_PATCH DEVICE_INITIAL_SDK_INT TYPE TAGS"
-
-# Function to find build & system properties within a specified directory.
-find_prop_files() {
-  dir="$1"
-  maxdepth="$2"
-  maxdepth=${maxdepth:-3}
-
-  find "$dir" -maxdepth "$maxdepth" -type f \( -name 'build.prop' -o -name 'system.prop' \) -print 2>/dev/null
-}
-
-# Function to grep a property value from a list of files
-grep_prop() {
-  PROP="$1"
-  shift
-  FILES_or_VAR="$@"
-
-  if [ -n "$FILES_or_VAR" ]; then
-    echo "$FILES_or_VAR" | grep -m1 "^$PROP=" 2>/dev/null | cut -d= -f2- | head -n 1
-  fi
-}
 
 # Define the props path
 MODPROP_FILES=$(find_prop_files "$MODPATH/" 1)
@@ -51,6 +39,8 @@ handle_google_apps() {
   for google_app in $GOOGLE_APPS; do
     su -c am force-stop "$google_app"
     # TODO: Automate sign-out from Device Activity #
+    # am broadcast -a android.settings.ACTION_BLUETOOTH_PRIVATE_DATA_GRANTED --es package "$google_app" --ei value 0
+    # am broadcast -a android.settings.ACTION_BLUETOOTH_PRIVATE_DATA_GRANTED --es package "$google_app" --ei value 1
     su -c pm clear "$google_app"
     echo " ? Cleanned $google_app"
   done
@@ -167,3 +157,6 @@ TrickyStoreTarget() {
 # Calling functions
 PlayIntegrityFix
 TrickyStoreTarget
+
+# Dont close action abruptly
+sleep 10 && exit 0

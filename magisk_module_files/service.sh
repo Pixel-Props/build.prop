@@ -1,6 +1,13 @@
 #!/system/bin/sh
 
 MODPATH="${0%/*}"
+
+# If MODPATH is empty or is not default modules path, use current path
+if [ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/'; then
+  MODPATH="$(dirname "$(readlink -f "$0")")"
+fi
+
+# Define the system.prop path
 MODPATH_SYSTEM_PROP=$([ -d "$MODPATH_SYSTEM_PROP" ] || echo "$MODPATH/system.prop")
 
 # Define the props path
