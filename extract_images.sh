@@ -145,6 +145,11 @@ for dir in "$EI"/*; do  # List directory ./*
 		print_message "Building sysconfig features…" info
 		./build_sysconfig.sh "$dir"
 
+		# Build media bootanimation
+		# (Optional) It increases the module size significantly!
+		# print_message "Building media bootanimation…" info
+		# ./build_bootanimation.sh "$dir"
+
 		# Build Magisk module
 		print_message "Building module…" info
 		./build_magisk_module.sh "$dir"

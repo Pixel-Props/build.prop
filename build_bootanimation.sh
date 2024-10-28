@@ -6,8 +6,5 @@
 # Start processing directories (default to ./extracted_images)
 process_directories "${BASH_SOURCE[0]}" "$1"
 
-# List of files to copy
-files_to_copy="nga pixel_experience_ google.xml google_build.xml google_fi.xml adaptivecharging.xml quick_tap.xml"
-
 # Copy specific files
-copy_specific_files "$dir/extracted/product/etc/sysconfig" "$dir/system/product/etc/sysconfig/" "$files_to_copy"
+copy_specific_files "$dir/extracted/product/media" "$dir/system/product/media" "bootanimation"

@@ -27,7 +27,7 @@ Effortlessly extract and manage system properties from Pixel OTA updates with th
     python3.12 -m pip install payload_dumper/
     ```
 
-1. **Obtain Pixel Images:** Download the desired factory or OTA images from [Google Android Images](https://developers.google.com/android/images) or the [Beta OTA Pages](https://developer.android.com/about/versions/14/download-ota).
+1. **Obtain Pixel Images:** Download the desired factory or OTA images from [Google Android Images](https://developers.google.com/android/images) or the [Beta OTA Pages](https://developer.android.com/about/versions/15/download-ota).
 2. **Effortless Extraction:**
    - Place the downloaded image files within the project's workspace.
    - Execute `./extract_images.sh` to automatically extract build properties.
@@ -45,6 +45,7 @@ Effortlessly extract and manage system properties from Pixel OTA updates with th
     - **Telegram Notifications:**  Stay informed about build processes with timely updates.
 - **Future Enhancements:**
   - **PlayIntegrityFix Integration:**  Planned support for enhanced app integrity checks (under development).
+  - **[Pixel.Features](https://github.com/Pixel-Props/pixel.features/):**  Planned support for building Pixel-specific features (under development).
 
 ## 📝 Responsible Usage Guidelines
 

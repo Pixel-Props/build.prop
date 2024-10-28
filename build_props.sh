@@ -3,19 +3,8 @@
 # Using util_functions.sh
 [ -f "util_functions.sh" ] && . ./util_functions.sh || { echo "util_functions.sh not found" && exit 1; }
 
-# Build props from script base path if no directory were specified
-[ -n "$1" ] && dir=$1 || {
-	for dir in ./extracted_images/*; do # List directory ./*
-		if [ -d "$dir" ]; then             # Check if it is a directory
-			dir=${dir%*/}                     # Remove last /
-			print_message "Processing \"${dir##*/}\"" debug
-
-			# Execute current script using first argument as dir
-			./"${BASH_SOURCE[0]}" "$dir"
-		fi
-	done
-	exit 1
-}
+# Start processing directories (default to ./extracted_images)
+process_directories "${BASH_SOURCE[0]}" "$1"
 
 # Define the props path
 declare EXT_PROP_FILES=$(find_prop_files "$dir")
@@ -143,11 +132,7 @@ to_system_prop "# end ADDITIONAL_VENDOR_PROPERTIES
 build_system_prop "debug.sf.enable_sdr_dimming"
 build_system_prop "debug.sf.dim_in_gamma_in_enhanced_screenshots"
 build_system_prop "persist.vendor.enable.thermal.genl"
-build_system_prop "suspend.short_suspend_threshold_millis"
-build_system_prop "suspend.max_sleep_time_millis"
-build_system_prop "suspend.short_suspend_backoff_enabled"
 build_system_prop "ro.incremental.enable"
-build_system_prop "ro.build.device_family"
 to_system_prop "# end PRODUCT_PROPERTY_OVERRIDES
 
 ###
@@ -283,8 +268,8 @@ device_build_id=$(grep_prop "ro.build.id" "$EXT_PROP_CONTENT")
 device_codename=$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")
 base_name="${device_codename}_$device_build_id"
 
-add_prop_as_ini to_module_prop "id" "${device_code_name^}_Prop"
-add_prop_as_ini to_module_prop "name" "$device_name (${device_code_name^^}) Prop"
+add_prop_as_ini to_module_prop "id" "${device_code_name^}_Props"
+add_prop_as_ini to_module_prop "name" "$device_name (${device_code_name^^}) Props"
 add_prop_as_ini to_module_prop "version" "$device_build_security_patch"
 add_prop_as_ini to_module_prop "versionCode" "$(echo "$device_build_security_patch" | tr -d - | cut -c3-)"
 add_prop_as_ini to_module_prop "author" "Tesla"

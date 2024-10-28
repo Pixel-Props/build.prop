@@ -10,10 +10,20 @@ umask 022
 ui_print() { echo "$1"; }
 
 require_new_magisk() {
-  ui_print "*******************************"
-  ui_print " Please install Magisk v20.4+! "
-  ui_print "*******************************"
+  ui_print "*******************************************"
+  ui_print " ! Warning: Please install Magisk v20.4+ !"
+  ui_print "*******************************************"
   exit 1
+}
+
+# Function that remove comments from files and place them, add blank line to end if not already present
+remove_comments() {
+  for i in $(find "$MODPATH" -type f -name "*.sh" -o -name "*.prop" -o -name "*.rule"); do
+    [ -f "$i" ] && {
+      sed -i -e "/^#/d" -e "/^ *$/d" "$i"
+      [ "$(tail -1 "$i")" ] && echo "" >>"$i"
+    } || continue
+  done
 }
 
 ##########################
@@ -27,15 +37,8 @@ ZIPFILE=$3
 . /data/adb/magisk/util_functions.sh
 [ $MAGISK_VER_CODE -lt 20400 ] && require_new_magisk
 
-# Remove comments from files and place them, add blank line to end if not already present
-for i in $(find "$MODPATH" -type f -name "*.sh" -o -name "*.prop" -o -name "*.rule"); do
-  [ -f "$i" ] && {
-    sed -i -e "/^#/d" -e "/^ *$/d" "$i"
-    [ "$(tail -1 "$i")" ] && echo "" >>"$i"
-  } || continue
-done
-
 install_module
+# remove_comments
 
 #############
 # OverlayFS #

@@ -3,19 +3,8 @@
 # Using util_functions.sh
 [ -f "util_functions.sh" ] && . ./util_functions.sh || { echo "util_functions.sh not found" && exit 1; }
 
-# Load data from script base path if no directory were specified
-[ -n "$1" ] && dir=$1 || {
-	for dir in ./extracted_images/*; do # List directory ./*
-		if [ -d "$dir" ]; then             # Check if it is a directory
-			dir=${dir%*/}                     # Remove last /
-			print_message "Processing \"${dir##*/}\"" debug
-
-			# Execute current script using first argument as dir
-			./"${BASH_SOURCE[0]}" "$dir"
-		fi
-	done
-	exit 1
-}
+# Start processing directories (default to ./extracted_images)
+process_directories "${BASH_SOURCE[0]}" "$1"
 
 # Current basename
 base_name=$(basename "$dir")
@@ -26,6 +15,7 @@ declare EXT_PROP_FILES=$(find_prop_files "$dir")
 # Store the content of all prop files in a variable
 declare EXT_PROP_CONTENT=$(cat $EXT_PROP_FILES)
 
+# Save module device information
 device_name=$(grep_prop "ro.product.model" "$EXT_PROP_CONTENT")
 device_build_id=$(grep_prop "ro.build.id" "$EXT_PROP_CONTENT")
 device_codename=$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")
@@ -41,16 +31,29 @@ mkdir -p "result/$base_name/system/product/etc/"
 
 # Copy relevant files
 cp "$dir"/{module,system}.prop "result/$base_name/"
-cp -r "$dir"/sysconfig/ "result/$base_name/system/product/etc/"
+cp -r "$dir"/system/ "result/$base_name/"
 cp -r ./magisk_module_files/* "result/$base_name/"
 
-# Archive the module as zip
+# Navigate to the module directory
 cd "result/$base_name" || exit 1
+
+# Enumerate and hash all the scripts inside the module
+find . -type f \( -name "*.sh" -o -name "update-binary" -o -name "updater-script" \) -print0 | while IFS= read -r -d '' file; do
+	[ -f "$file" ] && sha256sum "$file" | awk '{print $1}' >"$file.sha256"
+done
+
+# Archive the module as zip
 zip -r -q "../../$base_name".zip .
+
+# Navigate out of the module directory
 cd ../..
 
+# Save the module hash
 module_hash=$(sha256sum "$base_name.zip" | awk '{print $1}')
-print_message "Module saved to \"$base_name.zip\" ($module_hash)" debug
+module_hash_upper=$(echo "$module_hash" | tr '[:lower:]' '[:upper:]')
+
+# Display information about module
+print_message "Built module ${base_name}.zip (SHA256: $module_hash_upper)" debug
 
 # Save build information for GitHub output
 if [[ -n "$GITHUB_OUTPUT" ]]; then

@@ -32,6 +32,30 @@ print_message() {
   fi
 }
 
+# Process directories either directly or by enumerating through a specified path
+#
+# Args:
+#   $1: SCRIPT - Script to execute for each directory (defaults to $0)
+#   $2: TARGET_DIR - Optional: Specific directory to process
+#   $3: SEARCH_DIR - Optional: Directory to search in (defaults to ./extracted_images)
+process_directories() {
+  script="${1:-$0}"
+  [ -n "$2" ] && dir=$2 || {
+    for dir in "${3:-./extracted_images}"/*; do
+      if [ -d "$dir" ]; then
+        dir=${dir%*/}
+        print_message "Processing \"${dir##*/}\"…" debug
+
+        # Execute script with directory as argument
+        ./"$script" "$dir"
+      fi
+    done
+
+    # Once done, exit to prevent duplicate executions
+    exit 1
+  }
+}
+
 # Function to install packages by name using various package managers
 install_packages() {
   local package_names=("$@")
@@ -143,6 +167,69 @@ install_packages() {
       print_message "$package installed successfully." info
     fi
   done
+}
+
+# Copy files from source to destination directory based on specified patterns
+#
+# Args:
+#   $1: SOURCE_DIR - Source directory containing files to copy
+#   $2: DEST_DIR - Destination directory where files will be copied
+#   $3: FILES_LIST - Space-separated list of patterns to match filenames
+#
+# Returns:
+#   0 on success
+#   1 if arguments missing, source directory not found, or destination creation fails
+copy_specific_files() {
+  # Check if required arguments are provided
+  if [ "$#" -lt 3 ]; then
+    print_message "Usage: copy_specific_files SOURCE_DIR DEST_DIR FILES_LIST" info
+    print_message "Example: copy_specific_files /src /dest 'file1.xml file2.xml pattern3'" debug
+    return 1
+  fi
+
+  # Parse arguments
+  src_dir="$1"
+  dest_dir="$2"
+  files_list="$3"
+
+  # Check if source directory exists
+  if [ ! -d "$src_dir" ]; then
+    print_message "Source directory '$src_dir' does not exist" error
+    return 1
+  fi
+
+  # Create destination directory
+  mkdir -p "$dest_dir" || {
+    print_message "Failed to create destination directory '$dest_dir'" error
+    return 1
+  }
+
+  # Counter for copied files
+  copied=0
+
+  # Process each file in source directory
+  for file in "$src_dir"/*; do
+    [ -f "$file" ] || continue # Skip if not a regular file
+
+    # Get basename of file
+    filename="${file##*/}"
+
+    # Check against each pattern
+    for pattern in $files_list; do
+      if echo "$filename" | grep -q "$pattern"; then
+        if cp "$file" "$dest_dir/"; then
+          copied=$((copied + 1))
+        else
+          print_message "Failed to copy: \"$filename\"" warning
+        fi
+        break
+      fi
+    done
+  done
+
+  # Report results
+  print_message "Copied $copied files to \"$dest_dir\"" debug
+  return 0
 }
 
 # Function to find build & system properties within a specified directory.
