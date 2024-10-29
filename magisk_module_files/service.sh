@@ -80,13 +80,15 @@ init_config() {
   # Try to get values from the existing config
   device_prop=$(grep_prop "pixelprops.sensitive.device" "$MODPROP_CONTENT")
   sdk_prop=$(grep_prop "pixelprops.sensitive.sdk" "$MODPROP_CONTENT")
+  soc_prop=$(grep_prop "pixelprops.sensitive.soc" "$MODPROP_CONTENT")
 
   # Initialize with existing values or defaults
   SAFE_DEVICE=${device_prop:-true}
   SAFE_SDK=${sdk_prop:-true}
+  SAFE_SOC=${soc_prop:-true}
 
   # If either property is missing, get user input
-  if [ -z "$device_prop" ] || [ -z "$sdk_prop" ]; then
+  if [ -z "$device_prop" ] || [ -z "$sdk_prop" ] || [ -z "$soc_prop" ]; then
     ui_print " - Some sensitive properties not found, asking for user input…"
 
     # Get user input only for missing properties
@@ -99,6 +101,11 @@ init_config() {
     if [ -z "$sdk_prop" ]; then
       volume_key_event_setval "SAFE_SDK" true false SAFE_SDK
       echo "pixelprops.sensitive.sdk=$SAFE_SDK" >>"$MODPATH/config.prop"
+    fi
+
+    if [ -z "$soc_prop" ]; then
+      volume_key_event_setval "SAFE_SOC" true false SAFE_SOC
+      echo "pixelprops.sensitive.soc=$SAFE_SOC" >>"$MODPATH/config.prop"
     fi
   fi
 }
@@ -118,6 +125,14 @@ sensitive_checks() {
     check_and_update_prop "ro.product.build.version.sdk" "ro.product.build.version.sdk" "SDK" "lt"
     check_and_update_prop "ro.product.build.version.release" "ro.product.build.version.release" "BUILD_VERSION" "lt"
     check_and_update_prop "ro.product.build.version.release_or_codename" "ro.product.build.version.release_or_codename" "BUILD_VERSION_CODENAME" "lt"
+  fi
+
+  if boolval "$SAFE_SOC"; then
+    ui_print " - Safe Mode was manually disabled for \"SAFE_SOC\" !"
+    ui_print " ? This could cause soft-brick on non-Pixel brand phone !"
+  else
+    check_and_update_prop "ro.soc.manufacturer" "ro.soc.model" "SOC_MODEL" "ne"
+    check_and_update_prop "ro.soc.manufacturer" "ro.soc.manufacturer" "SOC_MANUFACTURER" "ne"
   fi
 }
 

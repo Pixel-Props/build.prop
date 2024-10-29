@@ -160,7 +160,7 @@ TrickyStoreTarget() {
       ui_print " - No changes detected in \"$TARGET_DIR\"."
     else # Backup old target file and update it
       mv "$TARGET_DIR" "${TARGET_DIR}.old"
-      cp "$CWD_PIF" "$TARGET_DIR"
+      cp "$CWD_TARGET" "$TARGET_DIR"
       ui_print " ++ Target file has been updated and saved to \"$TARGET_DIR\"."
     fi
   fi
