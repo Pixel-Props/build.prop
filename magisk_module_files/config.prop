@@ -1,2 +1,5 @@
-pixelprops.sensitive.device=false
-pixelprops.sensitive.sdk=true
+# You can set those manually if you don't have phisical volume keys.
+# pixelprops.sensitive.device=false
+# pixelprops.sensitive.security_patch=true
+# pixelprops.sensitive.soc=true
+# pixelprops.sensitive.sdk=true

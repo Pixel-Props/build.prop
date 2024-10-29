@@ -83,10 +83,12 @@ volume_key_event_setval() {
 
     if echo "$keys" | grep -q 'VOLUMEUP'; then
       echo " - Option \"$option_name\" set to \"$option1\""
+      echo " *********************************"
       eval "$result_var='$option1'"
       return 1
     elif echo "$keys" | grep -q 'VOLUMEDOWN'; then
       echo " - Option \"$option_name\" set to \"$option2\""
+      echo " *********************************"
       eval "$result_var='$option2'"
       return 1
     elif echo "$keys" | grep -q 'POWER'; then

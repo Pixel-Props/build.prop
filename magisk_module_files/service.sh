@@ -3,145 +3,153 @@
 MODPATH="${0%/*}"
 
 # If MODPATH is empty or is not default modules path, use current path
-if [ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/'; then
+[ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/' &&
   MODPATH="$(dirname "$(readlink -f "$0")")"
-fi
 
 # Using util_functions.sh
-[ -f "$MODPATH"/util_functions.sh ] && . "$MODPATH"/util_functions.sh || abort "! util_functions.sh not found!"
+[ -f "$MODPATH/util_functions.sh" ] && . "$MODPATH/util_functions.sh" || abort "! util_functions.sh not found!"
 
-# Define the system.prop path and check if it exists and is writable
-MODPATH_SYSTEM_PROP="$MODPATH/system.prop"
-[ ! -f "$MODPATH_SYSTEM_PROP" ] || [ ! -w "$MODPATH_SYSTEM_PROP" ] && abort " ! system.prop not found or not writable !"
+# Define module property config
+for prop_file in "system.prop" "config.prop"; do
+  prop_path="$MODPATH/$prop_file"
+  prop_key_upper=$(echo "${prop_file%%.*}" | tr '[:lower:]' '[:upper:]')
 
-# Define the config.prop path and check if it exists and is writable
-MODPATH_CONFIG_PROP="$MODPATH/config.prop"
-[ ! -f "$MODPATH_CONFIG_PROP" ] || [ ! -w "$MODPATH_CONFIG_PROP" ] && abort " ! config.prop not found or not writable !"
+  # Check whether the file exists and is writable
+  [ ! -f "$prop_path" ] || [ ! -w "$prop_path" ] && abort " ! $prop_file not found or not writable !"
 
-# # Define the props path
+  # Set variable for the module property configs
+  eval "MODPATH_${prop_key_upper}_PROP=\$prop_path"
+done
+
+# Define the props path and content
 MODPROP_FILES=$(find_prop_files "$MODPATH/" 1)
 SYSPROP_FILES=$(find_prop_files "/" 3)
-
-# Store the content of all prop files in a variable
 MODPROP_CONTENT=$(echo "$MODPROP_FILES" | xargs cat)
 SYSPROP_CONTENT=$(echo "$SYSPROP_FILES" | xargs cat)
 
-# Function to comment property in system.prop
-comment_prop() {
-  prop_name="$1"
-  sys_prop_val="$2"
-  mod_prop_key="$3"
+# Property management functions
+manage_prop() {
+  local action=$1 prop_name=$2 mod_prop_val=$3 mod_prop_key=$4
+  ui_print " - $prop_name=$mod_prop_val, ${action}ing property…"
 
-  ui_print " - $prop_name=$sys_prop_val, unsafe property."
-  if ! sed -i "s/^${mod_prop_key}/# ${mod_prop_key}/" "$MODPATH_SYSTEM_PROP"; then
-    ui_print " ! Warning: Failed to uncomment property $mod_prop_key"
-  fi
+  # Construct the sed command dynamically using eval
+  local comment_cmd="s/^${mod_prop_key}/# ${mod_prop_key}/"
+  local uncomment_cmd="s/^# ${mod_prop_key}/${mod_prop_key}/"
+  eval "local sed_cmd=\$${action}_cmd"
+
+  sed -i "$sed_cmd" "$MODPATH_SYSTEM_PROP" ||
+    ui_print " ! Warning: Failed to $action property $mod_prop_key"
 }
 
-# Function to remove commented property from system.prop
-uncomment_prop() {
-  prop_name="$1"
-  sys_prop_val="$2"
-  mod_prop_key="$3"
+comment_prop() { manage_prop "comment" "$@"; }
+uncomment_prop() { manage_prop "uncomment" "$@"; }
 
-  ui_print " - $prop_name=$sys_prop_val, safe property…"
-  if ! sed -i "s/^# ${mod_prop_key}/${mod_prop_key}/" "$MODPATH_SYSTEM_PROP"; then
-    ui_print " ! Warning: Failed to comment property $mod_prop_key"
-  fi
-}
-
-# Function to check and update a property
 check_and_update_prop() {
-  sys_prop_key="$1"
-  mod_prop_key="$2"
-  prop_name="$3"
-  comparison="$4"
+  local sys_prop_key=$1 mod_prop_key=$2 prop_name=$3 comparison=$4
 
   # Get the system and module properties
   sys_prop=$(grep_prop "$sys_prop_key" "$SYSPROP_CONTENT")
   mod_prop=$(grep_prop "$mod_prop_key" "$MODPROP_CONTENT")
 
-  # Check if sys_prop or mod_prop is empty
-  if [ -z "$sys_prop" ] || [ -z "$mod_prop" ]; then
+  # Check if the property exists within mod_prop
+  [ -z "$mod_prop" ] && {
     ui_print " - $prop_name is missing in either system or module props, skipping…"
     return
-  fi
+  }
 
+  local result
   # Perform comparisons based on the operand type
   case "$comparison" in
-  "eq") [ "$sys_prop" = "$mod_prop" ] 2>/dev/null && comment_prop "$prop_name" "$sys_prop" "$mod_prop_key" || uncomment_prop "$prop_name" "$sys_prop" "$mod_prop_key" ;;
-  "ne") [ "$sys_prop" != "$mod_prop" ] 2>/dev/null && comment_prop "$prop_name" "$sys_prop" "$mod_prop_key" || uncomment_prop "$prop_name" "$sys_prop" "$mod_prop_key" ;;
-  "lt") [ "$sys_prop" -lt "$mod_prop" ] 2>/dev/null && comment_prop "$prop_name" "$sys_prop" "$mod_prop_key" || uncomment_prop "$prop_name" "$sys_prop" "$mod_prop_key" ;;
-  "le") [ "$sys_prop" -le "$mod_prop" ] 2>/dev/null && comment_prop "$prop_name" "$sys_prop" "$mod_prop_key" || uncomment_prop "$prop_name" "$sys_prop" "$mod_prop_key" ;;
-  "gt") [ "$sys_prop" -gt "$mod_prop" ] 2>/dev/null && comment_prop "$prop_name" "$sys_prop" "$mod_prop_key" || uncomment_prop "$prop_name" "$sys_prop" "$mod_prop_key" ;;
-  "ge") [ "$sys_prop" -ge "$mod_prop" ] 2>/dev/null && comment_prop "$prop_name" "$sys_prop" "$mod_prop_key" || uncomment_prop "$prop_name" "$sys_prop" "$mod_prop_key" ;;
+  eq) [ "$sys_prop" = "$mod_prop" ] && result=0 ;;
+  ne) [ "$sys_prop" != "$mod_prop" ] && result=0 ;;
+  lt) [ "$sys_prop" -lt "$mod_prop" ] 2>/dev/null && result=0 ;;
+  le) [ "$sys_prop" -le "$mod_prop" ] 2>/dev/null && result=0 ;;
+  gt) [ "$sys_prop" -gt "$mod_prop" ] 2>/dev/null && result=0 ;;
+  ge) [ "$sys_prop" -ge "$mod_prop" ] 2>/dev/null && result=0 ;;
   esac
+
+  # Patch properties based on given result
+  [ "$result" = 0 ] &&
+    comment_prop "$prop_name" "$mod_prop" "$mod_prop_key" ||
+    uncomment_prop "$prop_name" "$mod_prop" "$mod_prop_key"
 }
 
-# Function to initialize config with default values
+# Initialize config
 init_config() {
-  # Try to get values from the existing config
-  device_prop=$(grep_prop "pixelprops.sensitive.device" "$MODPROP_CONTENT")
-  sdk_prop=$(grep_prop "pixelprops.sensitive.sdk" "$MODPROP_CONTENT")
-  soc_prop=$(grep_prop "pixelprops.sensitive.soc" "$MODPROP_CONTENT")
+  local prop_keys="device security_patch soc sdk"
 
-  # Initialize with existing values or defaults
-  SAFE_DEVICE=${device_prop:-true}
-  SAFE_SDK=${sdk_prop:-true}
-  SAFE_SOC=${soc_prop:-true}
+  for prop_key in $prop_keys; do
+    prop_val=$(grep_prop "pixelprops.sensitive.$prop_key" "$MODPROP_CONTENT")
+    prop_key_upper=$(echo "$prop_key" | tr '[:lower:]' '[:upper:]')
+    eval "SAFE_$prop_key_upper=\${prop_val:-true}"
 
-  # If either property is missing, save from user input
-  case "${device_prop}${sdk_prop}${soc_prop}" in
-  *"")
-    ui_print " - Some sensitive properties not found, asking for user input…"
+    [ -z "$prop_val" ] && {
+      ui_print " - Sensitive config property not found for $prop_key_upper, requesting user input…"
+      volume_key_event_setval "SAFE_$prop_key_upper" true false "SAFE_$prop_key_upper"
 
-    # Get user input only for missing properties
-
-    if [ -z "$device_prop" ]; then
-      volume_key_event_setval "SAFE_DEVICE" true false SAFE_DEVICE
-      echo "pixelprops.sensitive.device=$SAFE_DEVICE" >>"$MODPATH_CONFIG_PROP"
-    fi
-
-    if [ -z "$sdk_prop" ]; then
-      volume_key_event_setval "SAFE_SDK" true false SAFE_SDK
-      echo "pixelprops.sensitive.sdk=$SAFE_SDK" >>"$MODPATH_CONFIG_PROP"
-    fi
-
-    if [ -z "$soc_prop" ]; then
-      volume_key_event_setval "SAFE_SOC" true false SAFE_SOC
-      echo "pixelprops.sensitive.soc=$SAFE_SOC" >>"$MODPATH_CONFIG_PROP"
-    fi
-    ;;
-  esac
+      var_name="SAFE_$prop_key_upper"
+      eval "prop_value=\$$var_name"
+      echo "pixelprops.sensitive.$prop_key=$prop_value" >>"$MODPATH_CONFIG_PROP"
+    }
+  done
 }
 
-# Check and update the sensitive properties based on user selection
+# Check sensitive properties
 sensitive_checks() {
-  if boolval "$SAFE_DEVICE"; then
-    ui_print " - Safe Mode was manually disabled for \"SAFE_DEVICE\" !"
-  else
-    check_and_update_prop "ro.product.product.device" "ro.product.device" "PRODUCT_DEVICE" "ne"
-    check_and_update_prop "ro.product.vendor.device" "ro.product.vendor.device" "VENDOR_DEVICE" "ne"
-  fi
+  function_map=$(
+    cat <<EOF
+DEVICE:device:ne
+SECURITY_PATCH:security_patch:ne
+SOC:soc:ne
+SDK:sdk:lt
+EOF
+  )
 
-  if boolval "$SAFE_SDK"; then
-    ui_print " - Safe Mode was manually disabled for \"SAFE_SDK\" !"
-  else
-    check_and_update_prop "ro.product.build.version.sdk" "ro.product.build.version.sdk" "SDK" "lt"
-    check_and_update_prop "ro.product.build.version.release" "ro.product.build.version.release" "BUILD_VERSION" "lt"
-    check_and_update_prop "ro.product.build.version.release_or_codename" "ro.product.build.version.release_or_codename" "BUILD_VERSION_CODENAME" "lt"
-  fi
+  echo "$function_map" | while IFS=: read -r safe_var prop_type comparison; do
+    eval "local safe_val=\$SAFE_$safe_var"
 
-  if boolval "$SAFE_SOC"; then
-    ui_print " - Safe Mode was manually disabled for \"SAFE_SOC\" !"
-  else
-    check_and_update_prop "ro.soc.model" "ro.soc.model" "SOC_MODEL" "ne"
-    check_and_update_prop "ro.soc.manufacturer" "ro.soc.manufacturer" "SOC_MANUFACTURER" "ne"
-  fi
+    if boolval "$safe_val"; then
+      ui_print " - Safe Mode was manually disabled for \"SAFE_$safe_var\" !"
+    else
+      case "$prop_type" in
+      device)
+        check_and_update_prop "ro.product.product.device" "ro.product.device" "PRODUCT_DEVICE" "$comparison"
+        check_and_update_prop "ro.product.vendor.device" "ro.product.vendor.device" "VENDOR_DEVICE" "$comparison"
+        ;;
+      security_patch)
+        check_and_update_prop "ro.vendor.build.security_patch" "ro.vendor.build.security_patch" "VENDOR_SECURITY_PATCH" "$comparison"
+        check_and_update_prop "ro.build.version.security_patch" "ro.build.version.security_patch" "BUILD_SECURITY_PATCH" "$comparison"
+        ;;
+      soc)
+        check_and_update_prop "ro.soc.model" "ro.soc.model" "SOC_MODEL" "$comparison"
+        check_and_update_prop "ro.soc.manufacturer" "ro.soc.manufacturer" "SOC_MANUFACTURER" "$comparison"
+        ;;
+      sdk)
+        local prefixes="build product vendor system system_ext"
+        local versions="sdk incremental release release_or_codename"
+
+        for prefix in $prefixes; do
+          for version in $versions; do
+            prefix_upper=$(echo "$prefix" | tr '[:lower:]' '[:upper:]')
+            version_upper=$(echo "$version" | tr '[:lower:]' '[:upper:]')
+
+            # Construct the property name
+            [ "$prefix" = "build" ] &&
+              prop_name="ro.${prefix}.version.${version}" ||
+              prop_name="ro.${prefix}.build.version.${version}"
+
+            check_and_update_prop "$prop_name" "$prop_name" "${prefix_upper}_BUILD_$version_upper" "$comparison"
+          done
+        done
+        ;;
+      esac
+    fi
+  done
 }
 
-# Running checks
+# Main execution
 ui_print "- Running Sensitive MODPROP checks…"
-ui_print " ? When a property was detected as unsafe, It will be removed from the module system.prop spoof."
+ui_print " ? When a property was detected as unsafe, It will be removed / commented out from the module property."
+ui_print " ? To remove a property set it to true and It will be removed / commented out from the module property."
 init_config
 sensitive_checks

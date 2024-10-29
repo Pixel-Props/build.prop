@@ -9,9 +9,11 @@ fi
 # Using util_functions.sh
 [ -f "$MODPATH"/util_functions.sh ] && . "$MODPATH"/util_functions.sh || abort "! util_functions.sh not found!"
 
-# Define the props path
+# Define the props path and content
 MODPROP_FILES=$(find_prop_files "$MODPATH/" 1)
 SYSPROP_FILES=$(find_prop_files "/" 2)
+MODPROP_CONTENT=$(echo "$MODPROP_FILES" | xargs cat)
+SYSPROP_CONTENT=$(echo "$SYSPROP_FILES" | xargs cat)
 
 # Store the content of all prop files in a variable
 MODPROP_CONTENT=$(echo "$MODPROP_FILES" | xargs cat)
@@ -48,7 +50,7 @@ PlayIntegrityFix() {
 
   # Check whether we are about to build pif.json for PIF Fork or not
   if grep -q "Fork" "$PIF_MODULE_DIR/module.prop"; then
-    ui_print " - Detected a Fork version of PlayIntegrityFix, Please install the official version !"
+    ui_print " ! Detected a Fork version of PlayIntegrityFix, Please install the official version !"
   else
     ui_print " - Detected an official version of PlayIntegrityFix, Proceeding Building PIF.json for official version…"
 
@@ -72,8 +74,6 @@ PlayIntegrityFix() {
     # TAGS=$(grep_prop "ro.product.build.tags" "$MODPROP_CONTENT")
   fi
 
-  ui_print " - Building PlayIntegrityFix (PIF.json) properties…"
-
   # Set location of pif.json to of the current working directory
   CWD_PIF="$MODPATH"/pif.json
   shift
@@ -85,13 +85,13 @@ PlayIntegrityFix() {
   if [ -d "$PIF_MODULE_DIR" ]; then
     case "$PRODUCT" in
     *beta*)
-      ui_print " - Building (BETA) PlayIntegrityFix (PIF.json) PIF.json from current module properties…"
+      ui_print "  - Building PlayIntegrityFix PIF.json from current (BETA) module properties…"
 
       # Build the JSON object
       build_json "$PIF_LIST" >"$CWD_PIF"
       ;;
     *)
-      ui_print " - Non BETA module detected, Downloading PIF.json in order to pass integrity…"
+      ui_print "  - Non BETA module detected, Downloading PIF.json in order to pass integrity…"
 
       # Download the PIF.json file
       download_file "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json" "$CWD_PIF"
@@ -101,11 +101,11 @@ PlayIntegrityFix() {
     # Compares the newly generated PIF configuration file with existing ones and updates them if necessary.
     for PIF_DIR in $PIF_DIRS; do
       if cmp "$CWD_PIF" "$PIF_DIR" >/dev/null; then
-        ui_print " - No changes detected in \"$PIF_DIR\"."
+        ui_print "  - No changes detected in \"$PIF_DIR\"."
       else
         mv "$PIF_DIR" "${PIF_DIR}.old"
         cp "$CWD_PIF" "$PIF_DIR"
-        ui_print " ++ Config file has been updated and saved to \"$PIF_DIR\"."
+        ui_print "  ++ Config file has been updated and saved to \"$PIF_DIR\"."
         update_count=$((update_count + 1))
       fi
     done
@@ -115,10 +115,10 @@ PlayIntegrityFix() {
 
     # Show instructions only after we modified the PIF
     if [ $update_count -gt 0 ]; then
-      ui_print "  ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
-      ui_print "  ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
-      ui_print "  ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$MODEL\"."
-      ui_print "  ? More info: https://t.me/PixelProps/157"
+      ui_print " ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
+      ui_print " ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
+      ui_print " ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$MODEL\"."
+      ui_print " ? More info: https://t.me/PixelProps/157"
     fi
   else
     ui_print " - PlayIntegrityFix not found in your modules."
@@ -157,11 +157,11 @@ TrickyStoreTarget() {
 
     # Compares the newly generated target configuration file with existing ones and updates them if necessary.
     if cmp "$CWD_TARGET" "$TARGET_DIR" >/dev/null; then
-      ui_print " - No changes detected in \"$TARGET_DIR\"."
+      ui_print "  - No changes detected in \"$TARGET_DIR\"."
     else # Backup old target file and update it
       mv "$TARGET_DIR" "${TARGET_DIR}.old"
       cp "$CWD_TARGET" "$TARGET_DIR"
-      ui_print " ++ Target file has been updated and saved to \"$TARGET_DIR\"."
+      ui_print "  ++ Target file has been updated and saved to \"$TARGET_DIR\"."
     fi
   fi
 }
