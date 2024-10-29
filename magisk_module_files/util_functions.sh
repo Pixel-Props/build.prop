@@ -71,9 +71,9 @@ volume_key_event_setval() {
   result_var=$4
 
   echo " *********************************"
-  echo " * [ VOL+ ] = [ $option1 | YES ] *"
-  echo " * [ VOL- ] = [ $option2 | NO ]  *"
-  echo " * [ POWR ] = [ CANCEL ]         *"
+  echo " *      [ VOL+ ] = [ YES ]       *"
+  echo " *      [ VOL- ] = [ NO ]        *"
+  echo " *      [ POWR ] = [ CANCEL ]    *"
   echo " *********************************"
   echo " * Chose your selection for \"$option_name\" !"
   echo " *********************************"

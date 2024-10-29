@@ -12,10 +12,13 @@ fi
 
 # Define the system.prop path and check if it exists and is writable
 MODPATH_SYSTEM_PROP="$MODPATH/system.prop"
-[ ! -f "$MODPATH_SYSTEM_PROP" ] && abort " ! system.prop not found !"
-[ ! -w "$MODPATH_SYSTEM_PROP" ] && abort " ! system.prop is not writable !"
+[ ! -f "$MODPATH_SYSTEM_PROP" ] || [ ! -w "$MODPATH_SYSTEM_PROP" ] && abort " ! system.prop not found or not writable !"
 
-# Define the props path
+# Define the config.prop path and check if it exists and is writable
+MODPATH_CONFIG_PROP="$MODPATH/config.prop"
+[ ! -f "$MODPATH_CONFIG_PROP" ] || [ ! -w "$MODPATH_CONFIG_PROP" ] && abort " ! config.prop not found or not writable !"
+
+# # Define the props path
 MODPROP_FILES=$(find_prop_files "$MODPATH/" 1)
 SYSPROP_FILES=$(find_prop_files "/" 3)
 
@@ -29,7 +32,7 @@ comment_prop() {
   sys_prop_val="$2"
   mod_prop_key="$3"
 
-  ui_print " - $prop_name=$sys_prop_val, safe property."
+  ui_print " - $prop_name=$sys_prop_val, unsafe property."
   if ! sed -i "s/^${mod_prop_key}/# ${mod_prop_key}/" "$MODPATH_SYSTEM_PROP"; then
     ui_print " ! Warning: Failed to uncomment property $mod_prop_key"
   fi
@@ -41,7 +44,7 @@ uncomment_prop() {
   sys_prop_val="$2"
   mod_prop_key="$3"
 
-  ui_print " - $prop_name=$sys_prop_val, unsafe property…"
+  ui_print " - $prop_name=$sys_prop_val, safe property…"
   if ! sed -i "s/^# ${mod_prop_key}/${mod_prop_key}/" "$MODPATH_SYSTEM_PROP"; then
     ui_print " ! Warning: Failed to comment property $mod_prop_key"
   fi
@@ -87,27 +90,29 @@ init_config() {
   SAFE_SDK=${sdk_prop:-true}
   SAFE_SOC=${soc_prop:-true}
 
-  # If either property is missing, get user input
-  if [ -z "$device_prop" ] || [ -z "$sdk_prop" ] || [ -z "$soc_prop" ]; then
+  # If either property is missing, save from user input
+  case "${device_prop}${sdk_prop}${soc_prop}" in
+  *"")
     ui_print " - Some sensitive properties not found, asking for user input…"
 
     # Get user input only for missing properties
 
     if [ -z "$device_prop" ]; then
       volume_key_event_setval "SAFE_DEVICE" true false SAFE_DEVICE
-      echo "pixelprops.sensitive.device=$SAFE_DEVICE" >>"$MODPATH/config.prop"
+      echo "pixelprops.sensitive.device=$SAFE_DEVICE" >>"$MODPATH_CONFIG_PROP"
     fi
 
     if [ -z "$sdk_prop" ]; then
       volume_key_event_setval "SAFE_SDK" true false SAFE_SDK
-      echo "pixelprops.sensitive.sdk=$SAFE_SDK" >>"$MODPATH/config.prop"
+      echo "pixelprops.sensitive.sdk=$SAFE_SDK" >>"$MODPATH_CONFIG_PROP"
     fi
 
     if [ -z "$soc_prop" ]; then
       volume_key_event_setval "SAFE_SOC" true false SAFE_SOC
-      echo "pixelprops.sensitive.soc=$SAFE_SOC" >>"$MODPATH/config.prop"
+      echo "pixelprops.sensitive.soc=$SAFE_SOC" >>"$MODPATH_CONFIG_PROP"
     fi
-  fi
+    ;;
+  esac
 }
 
 # Check and update the sensitive properties based on user selection
@@ -129,9 +134,8 @@ sensitive_checks() {
 
   if boolval "$SAFE_SOC"; then
     ui_print " - Safe Mode was manually disabled for \"SAFE_SOC\" !"
-    ui_print " ? This could cause soft-brick on non-Pixel brand phone !"
   else
-    check_and_update_prop "ro.soc.manufacturer" "ro.soc.model" "SOC_MODEL" "ne"
+    check_and_update_prop "ro.soc.model" "ro.soc.model" "SOC_MODEL" "ne"
     check_and_update_prop "ro.soc.manufacturer" "ro.soc.manufacturer" "SOC_MANUFACTURER" "ne"
   fi
 }
