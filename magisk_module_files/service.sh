@@ -108,7 +108,7 @@ EOF
   echo "$function_map" | while IFS=: read -r safe_var prop_type comparison; do
     eval "local safe_val=\$SAFE_$safe_var"
 
-    if boolval "$safe_val"; then
+    if ! boolval "$safe_val"; then
       ui_print " - Safe Mode was manually disabled for \"SAFE_$safe_var\" !"
     else
       case "$prop_type" in

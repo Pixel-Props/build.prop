@@ -91,10 +91,96 @@ PlayIntegrityFix() {
       build_json "$PIF_LIST" >"$CWD_PIF"
       ;;
     *)
-      ui_print "  - Non BETA module detected, Downloading PIF.json in order to pass integrity…"
+      ui_print "  - Non BETA module detected"
+      ui_print "  - Do you wan't to download the PIF.json from GitHub? (chiteroman/PlayIntegrityFix)"
 
-      # Download the PIF.json file
-      download_file "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json" "$CWD_PIF"
+      # Ask whether to download PIF.json from chiteroman's GitHub or build one yourself
+      volume_key_event_setval "DOWNLOAD_PIF_GITHUB" true false "DOWNLOAD_PIF_GITHUB"
+
+      # Either download the PIF.json from chiteroman's GitHub or build one yourself
+      if boolval "$DOWNLOAD_PIF_GITHUB"; then
+        download_file "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json" "$CWD_PIF"
+      else
+        # Download Generic System Image (GSI) HTML
+        ui_print "  - Scalping Google's latest Pixel Beta Release…"
+
+        # Download Generic System Image (GSI) HTML
+        download_file https://developer.android.com/topic/generic-system-image/releases DL_GSI_HTML
+
+        # Extract release date  from the text closest to the "(Beta)" string and convert to YYYY-MM-DD format
+        RELEASE_DATE="$(date -D '%B %e, %Y' -d "$(grep -m1 -o 'Date:.*' DL_GSI_HTML | cut -d\  -f2-4)" '+%Y-%m-%d')"
+
+        # Extract the release version from the link closest to the "(Beta)" string
+        RELEASE_VERSION="$(awk '/\(Beta\)/ {flag=1} /versions/ && flag {print; flag=0}' DL_GSI_HTML | grep -o '/versions/[0-9]*' | sed 's/\/versions\///')"
+
+        # Extract the build ID from the text closest to the "(Beta)" string
+        ID="$(awk '/\(Beta\)/ {flag=1} /Build:/ && flag {print; flag=0}' DL_GSI_HTML | grep -o 'Build: [A-Z0-9.]*' | sed 's/Build: //')"
+
+        # Extract the incremental value (based on the ID)
+        INCREMENTAL="$(grep -o "$ID-[0-9]*-" DL_GSI_HTML | sed "s/$ID-//g" | sed 's/-//g' | head -n1)"
+
+        # Download the OTA Image Download page
+        download_file "https://developer.android.com/about/versions/$RELEASE_VERSION/download-ota" DL_OTA_HTML
+
+        # Build lists of supported models and products from the OTA Image Download page
+        MODEL_LIST="$(grep -A1 'tr id=' DL_OTA_HTML | grep '<td>' | sed -e 's/<[^>]*>//g' | sed 's/^[ \t]*//g' | tr -d '\r' | paste -sd, -)"
+        PRODUCT_LIST="$(grep -o 'ota/[^-]*' DL_OTA_HTML | sed 's/ota\///g' | paste -sd, -)"
+
+        # Create the custom list using awk for better handling of the comma-separated values
+        # model (product)
+        DEVICE_LIST="$(printf "%s\n%s" "$MODEL_LIST" "$PRODUCT_LIST" | awk -F, '
+NR==1 {
+    split($0, models, ",")
+    n = NF
+}
+NR==2 {
+    split($0, products, ",")
+    for (i=1; i<=n; i++) {
+        if (models[i] != "" && products[i] != "") {
+            if (i > 1) printf "\n"
+            printf "%s (%s)", models[i], products[i]
+        }
+    }
+}')"
+
+        # Show a list of device with proper format
+        ui_print "  - Supported Devices:"
+        for i in $(seq 1 "$(echo "$DEVICE_LIST" | wc -l)"); do
+          echo "   - $(echo "$DEVICE_LIST" | sed -n "${i}p")"
+        done
+
+        # Use volume key events to select a device by product name
+        volume_key_event_setoption "PRODUCT" "$(echo "$PRODUCT_LIST" | tr ',' ' ')" "SELECTED_PRODUCT"
+
+        # Get the device MODEL name from PRODUCT name, using DEVICE_LIST
+        SELECTED_MODEL=$(echo "$DEVICE_LIST" | grep "($SELECTED_PRODUCT)" | sed 's/ *(.*)//')
+
+        # Display the selected device
+        ui_print "  - Selected: $SELECTED_MODEL ($SELECTED_PRODUCT)"
+
+        # Remove the beta (_*) from PRODUCT name
+        SELECTED_PRODUCT_NAME=${SELECTED_PRODUCT%_*}
+
+        # Build security patch from OTA release date
+        SECURITY_PATCH_DATE="${RELEASE_DATE%-*}"-05
+
+        # List of properties to include in the PIF.json file
+        PIF_LIST="MODEL MANUFACTURER DEVICE_INITIAL_SDK_INT FINGERPRINT SECURITY_PATCH"
+
+        # Build properties
+        MODEL="$SELECTED_MODEL"
+        MANUFACTURER="Google"
+        DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
+        [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
+        FINGERPRINT="google/$SELECTED_PRODUCT/$SELECTED_PRODUCT_NAME:$RELEASE_VERSION/$ID/$INCREMENTAL:user/release-keys"
+        SECURITY_PATCH="$SECURITY_PATCH_DATE"
+
+        # Build the JSON object
+        build_json "$PIF_LIST" >"$CWD_PIF"
+
+        # Clean the downloaded files
+        rm -f DL_*_HTML
+      fi
       ;;
     esac
 
