@@ -55,23 +55,16 @@ PlayIntegrityFix() {
     ui_print " - Detected an official version of PlayIntegrityFix, Proceeding Building PIF.json for official version…"
 
     # List of properties to include in the PIF.json file
-    PIF_LIST="MODEL MANUFACTURER DEVICE_INITIAL_SDK_INT FINGERPRINT SECURITY_PATCH"
+    PIF_LIST="MODEL MANUFACTURER FINGERPRINT SECURITY_PATCH DEVICE_INITIAL_SDK_INT"
 
     # Build properties
     MODEL=$(grep_prop "ro.product.model" "$MODPROP_CONTENT")
-    # BRAND=$(grep_prop "ro.product.brand" "$MODPROP_CONTENT")
     MANUFACTURER=$(grep_prop "ro.product.manufacturer" "$MODPROP_CONTENT")
-    # DEVICE=$(grep_prop "ro.product.product.device" "$MODPROP_CONTENT")
-    # RELEASE=$(grep_prop "ro.product.build.version.release" "$MODPROP_CONTENT")
-    # ID=$(grep_prop "ro.product.build.id" "$MODPROP_CONTENT")
-    # INCREMENTAL=$(grep_prop "ro.build.version.incremental" "$MODPROP_CONTENT")
     PRODUCT=$(grep_prop "ro.product.product.name" "$MODPROP_CONTENT")
-    DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
-    [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
     FINGERPRINT=$(grep_prop "ro.product.build.fingerprint" "$MODPROP_CONTENT")
     SECURITY_PATCH=$(grep_prop "ro.vendor.build.security_patch" "$MODPROP_CONTENT")
-    # TYPE=$(grep_prop "ro.product.build.type" "$MODPROP_CONTENT")
-    # TAGS=$(grep_prop "ro.product.build.tags" "$MODPROP_CONTENT")
+    DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
+    [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
   fi
 
   # Set location of pif.json to of the current working directory
@@ -92,17 +85,23 @@ PlayIntegrityFix() {
       ;;
     *)
       ui_print "  - Non BETA module detected"
-      ui_print "  - Do you wan't to download the PIF.json from GitHub? (chiteroman/PlayIntegrityFix)"
+      ui_print "  - Download the PIF.json from GitHub? (chiteroman/PlayIntegrityFix)"
 
       # Ask whether to download PIF.json from chiteroman's GitHub or build one yourself
-      volume_key_event_setval "DOWNLOAD_PIF_GITHUB" true false "DOWNLOAD_PIF_GITHUB"
+      volume_key_event_setval "DOWNLOAD_PIF_GITHUB" true false "ACTION_DOWNLOAD_PIF_GITHUB"
+
+      # TODO: Not sure if i should add support for config.prop here (in case no HW keys present) ?
 
       # Either download the PIF.json from chiteroman's GitHub or build one yourself
-      if boolval "$DOWNLOAD_PIF_GITHUB"; then
+      if boolval "$ACTION_DOWNLOAD_PIF_GITHUB"; then
         download_file "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json" "$CWD_PIF"
       else
-        # Download Generic System Image (GSI) HTML
-        ui_print "  - Scalping Google's latest Pixel Beta Release…"
+        # This crawling mechanism was originally inspired by the CIT Project.
+        # This implementation addresses limitations in the original by providing:
+        #  - A comprehensive device listing with user selection.
+        #  - Enhanced crawling capabilities focused on (Beta) releases.
+
+        ui_print "  - Crawling the latest Google Pixel Beta OTA Release…"
 
         # Download Generic System Image (GSI) HTML
         download_file https://developer.android.com/topic/generic-system-image/releases DL_GSI_HTML
@@ -111,10 +110,10 @@ PlayIntegrityFix() {
         RELEASE_DATE="$(date -D '%B %e, %Y' -d "$(grep -m1 -o 'Date:.*' DL_GSI_HTML | cut -d\  -f2-4)" '+%Y-%m-%d')"
 
         # Extract the release version from the link closest to the "(Beta)" string
-        RELEASE_VERSION="$(awk '/\(Beta\)/ {flag=1} /versions/ && flag {print; flag=0}' DL_GSI_HTML | grep -o '/versions/[0-9]*' | sed 's/\/versions\///')"
+        RELEASE_VERSION="$(awk '/\(Beta\)/ {flag=1} /versions/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*\/versions\/\([0-9]*\).*/\1/p')"
 
         # Extract the build ID from the text closest to the "(Beta)" string
-        ID="$(awk '/\(Beta\)/ {flag=1} /Build:/ && flag {print; flag=0}' DL_GSI_HTML | grep -o 'Build: [A-Z0-9.]*' | sed 's/Build: //')"
+        ID="$(awk '/\(Beta\)/ {flag=1} /Build:/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*Build: \([A-Z0-9.]*\).*/\1/p')"
 
         # Extract the incremental value (based on the ID)
         INCREMENTAL="$(grep -o "$ID-[0-9]*-" DL_GSI_HTML | sed "s/$ID-//g" | sed 's/-//g' | head -n1)"
@@ -122,58 +121,47 @@ PlayIntegrityFix() {
         # Download the OTA Image Download page
         download_file "https://developer.android.com/about/versions/$RELEASE_VERSION/download-ota" DL_OTA_HTML
 
-        # Build lists of supported models and products from the OTA Image Download page
-        MODEL_LIST="$(grep -A1 'tr id=' DL_OTA_HTML | grep '<td>' | sed -e 's/<[^>]*>//g' | sed 's/^[ \t]*//g' | tr -d '\r' | paste -sd, -)"
-        PRODUCT_LIST="$(grep -o 'ota/[^-]*' DL_OTA_HTML | sed 's/ota\///g' | paste -sd, -)"
+        # Build lists of supported models and codenames from the OTA Image Download page
+        DEVICE_LIST="$(grep -A1 'tr id=' DL_OTA_HTML | awk -F '[<>"]' '
+            /tr id=/ { id = $3 }
+            /<td>/ {
+                devices = devices ? devices sprintf(",%s (%s)", $3, id) : sprintf("%s (%s)", $3, id)
+            }
+            END { print devices }
+        ')"
 
-        # Create the custom list using awk for better handling of the comma-separated values
-        # model (product)
-        DEVICE_LIST="$(printf "%s\n%s" "$MODEL_LIST" "$PRODUCT_LIST" | awk -F, '
-NR==1 {
-    split($0, models, ",")
-    n = NF
-}
-NR==2 {
-    split($0, products, ",")
-    for (i=1; i<=n; i++) {
-        if (models[i] != "" && products[i] != "") {
-            if (i > 1) printf "\n"
-            printf "%s (%s)", models[i], products[i]
-        }
-    }
-}')"
+        CODENAME_LIST="$(grep -A1 'tr id=' DL_OTA_HTML | awk -F '[<>"]' '
+          /tr id=/ {
+              codenames = codenames ? codenames "," $3 : $3
+          }
+          END { print codenames }
+      ')"
 
         # Show a list of device with proper format
-        ui_print "  - Supported Devices:"
-        for i in $(seq 1 "$(echo "$DEVICE_LIST" | wc -l)"); do
-          echo "   - $(echo "$DEVICE_LIST" | sed -n "${i}p")"
+        ui_print "  - Devices Available:"
+        echo "$DEVICE_LIST" | tr ',' '\n' | while read -r device; do
+          ui_print "   - $device"
         done
 
-        # Use volume key events to select a device by product name
-        volume_key_event_setoption "PRODUCT" "$(echo "$PRODUCT_LIST" | tr ',' ' ')" "SELECTED_PRODUCT"
+        # Use volume key events to select a device by its codename
+        volume_key_event_setoption "CODENAME" "$(echo "$CODENAME_LIST" | tr ',' ' ')" "SELECTED_CODENAME"
 
-        # Get the device MODEL name from PRODUCT name, using DEVICE_LIST
-        SELECTED_MODEL=$(echo "$DEVICE_LIST" | grep "($SELECTED_PRODUCT)" | sed 's/ *(.*)//')
-
-        # Display the selected device
-        ui_print "  - Selected: $SELECTED_MODEL ($SELECTED_PRODUCT)"
-
-        # Remove the beta (_*) from PRODUCT name
-        SELECTED_PRODUCT_NAME=${SELECTED_PRODUCT%_*}
+        # Get the device MODEL name from the selected CODENAME using DEVICE_LIST
+        SELECTED_MODEL=$(echo "$DEVICE_LIST" | tr ',' '\n' | awk -F'[(,]' -v c="$SELECTED_CODENAME" '$0~c{print $1}')
 
         # Build security patch from OTA release date
         SECURITY_PATCH_DATE="${RELEASE_DATE%-*}"-05
 
         # List of properties to include in the PIF.json file
-        PIF_LIST="MODEL MANUFACTURER DEVICE_INITIAL_SDK_INT FINGERPRINT SECURITY_PATCH"
+        PIF_LIST="MODEL MANUFACTURER FINGERPRINT SECURITY_PATCH DEVICE_INITIAL_SDK_INT"
 
         # Build properties
         MODEL="$SELECTED_MODEL"
         MANUFACTURER="Google"
+        FINGERPRINT="google/${SELECTED_CODENAME}_beta/$SELECTED_CODENAME:$RELEASE_VERSION/$ID/$INCREMENTAL:user/release-keys"
+        SECURITY_PATCH="$SECURITY_PATCH_DATE"
         DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
         [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
-        FINGERPRINT="google/$SELECTED_PRODUCT/$SELECTED_PRODUCT_NAME:$RELEASE_VERSION/$ID/$INCREMENTAL:user/release-keys"
-        SECURITY_PATCH="$SECURITY_PATCH_DATE"
 
         # Build the JSON object
         build_json "$PIF_LIST" >"$CWD_PIF"
@@ -201,10 +189,10 @@ NR==2 {
 
     # Show instructions only after we modified the PIF
     if [ $update_count -gt 0 ]; then
-      ui_print " ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
-      ui_print " ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
-      ui_print " ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$MODEL\"."
-      ui_print " ? More info: https://t.me/PixelProps/157"
+      ui_print "  ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
+      ui_print "  ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
+      ui_print "  ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$MODEL\"."
+      ui_print "  ? More info: https://t.me/PixelProps/157"
     fi
   else
     ui_print " - PlayIntegrityFix not found in your modules."
@@ -259,4 +247,4 @@ PlayIntegrityFix
 TrickyStoreTarget
 
 # Done, don't close action abruptly
-sleep 10 && exit 0
+sleep 5 && exit 0

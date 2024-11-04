@@ -36,16 +36,21 @@ Effortlessly extract and manage system properties from Pixel OTA updates with th
 
 ## ✨ Key Features
 
-- **Automated OTA Acquisition:**  Downloads the most recent builds directly from Google's official sources.
-- **Seamless Image Extraction:**  Supports both factory and OTA images for versatile usage.
-- **Build Prop Generation:**  Effortlessly converts extracted images into organized build.prop files.
+- **Automated OTA Acquisition:**  Downloads the latest builds directly from Google's official sources.
+- **Seamless Image Extraction:**  Extracts system images from both factory images and OTA updates.
+- **Build Prop Generation:** Automatically generates `build.prop` files from extracted system images.
+- **Magisk Module Features:**
+  - **`service.sh`:**
+    - **Safe Mode:** Prevents accidental modification of critical system settings by comparing module properties with existing system values.
+  - **`action.sh`:**
+    - **PlayIntegrityFix:**  Automatically builds the `PIF.json` configuration when using a Beta OTA. Provides options to download pre-built configurations or crawl Google's OTA pages to generate a list of devices for building the configuration.
+    - **TrickyStore:** Automatically builds the target app package list and handles broken TEE status.
 - **GitHub Actions Integration:**
-  - **Scheduled Workflows:**  Configure automated updates, builds, and releases.
-    - **Duplicate Release Prevention:**  Intelligent checks prevent redundant releases.
-    - **Telegram Notifications:**  Stay informed about build processes with timely updates.
+  - **Scheduled Workflows:** Automate updates, builds, and releases on a schedule.
+    - **Duplicate Release Prevention:** Prevents redundant releases with intelligent checks.
+    - **Telegram Notifications:** Receive timely updates about build processes.
 - **Future Enhancements:**
-  - **PlayIntegrityFix Integration:**  Planned support for enhanced app integrity checks (under development).
-  - **[Pixel.Features](https://github.com/Pixel-Props/pixel.features/):**  Planned support for building Pixel-specific features (under development).
+  - **[Pixel.Features](https://github.com/Pixel-Props/pixel.features/):** Add support for building Pixel-specific features (currently includes `sysconfigs`).
 
 ## 📝 Responsible Usage Guidelines
 
