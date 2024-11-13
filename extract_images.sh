@@ -136,6 +136,18 @@ for dir in "$EI"/*; do  # List directory ./*
 
 		# Print the extraction time
 		print_message "Extraction time: $extraction_runtime seconds\n" debug
+	fi
+done
+
+# Build props, feature and module files after extraction
+[ -d "$EI" ] && print_message "Building module props and features…\n" info
+for dir in "$EI"/*; do  # List directory ./*
+	if [ -d "$dir" ]; then # Check if it is a directory
+		dir=${dir%*/}         # Remove last /
+		print_message "Processing \"${dir##*/}\"…" info
+
+		# Time the extraction
+		extraction_start=$(date +%s)
 
 		# Build system.prop
 		print_message "Building props…" info
@@ -153,5 +165,12 @@ for dir in "$EI"/*; do  # List directory ./*
 		# Build Magisk module
 		print_message "Building module…" info
 		./build_magisk_module.sh "$dir"
+
+		# Time the extraction
+		extraction_end=$(date +%s)
+		extraction_runtime=$((extraction_end - extraction_start))
+
+		# Print the build time
+		print_message "Build time: $extraction_runtime seconds\n" debug
 	fi
 done

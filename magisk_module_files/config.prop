@@ -1,4 +1,8 @@
 # You can set those manually if you don't have phisical volume keys.
+#
+# On sensitive key, values when true are basically meant,
+# to set and use the sensitive checks, else when false will ignore the check.
+
 # pixelprops.sensitive.device=false
 # pixelprops.sensitive.security_patch=true
 # pixelprops.sensitive.soc=true
