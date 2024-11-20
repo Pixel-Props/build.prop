@@ -106,14 +106,14 @@ PlayIntegrityFix() {
         # Download Generic System Image (GSI) HTML
         download_file https://developer.android.com/topic/generic-system-image/releases DL_GSI_HTML
 
-        # Extract release date  from the text closest to the "(Beta)" string and convert to YYYY-MM-DD format
-        RELEASE_DATE="$(date -D '%B %e, %Y' -d "$(grep -m1 -o 'Date:.*' DL_GSI_HTML | cut -d\  -f2-4)" '+%Y-%m-%d')"
+        # Extract release date from the text closest to the "(Beta)" string and convert to YYYY-MM-DD format
+        RELEASE_DATE="$(date -D '%B %e, %Y' -d "$(grep -m1 -o 'Date:.*' DL_GSI_HTML | cut -d\  -f2-4)" '+%Y-%m-%d' | head -n1)"
 
         # Extract the release version from the link closest to the "(Beta)" string
-        RELEASE_VERSION="$(awk '/\(Beta\)/ {flag=1} /versions/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*\/versions\/\([0-9]*\).*/\1/p')"
+        RELEASE_VERSION="$(awk '/\(Beta\)/ {flag=1} /versions/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*\/versions\/\([0-9]*\).*/\1/p' | head -n1)"
 
         # Extract the build ID from the text closest to the "(Beta)" string
-        ID="$(awk '/\(Beta\)/ {flag=1} /Build:/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*Build: \([A-Z0-9.]*\).*/\1/p')"
+        ID="$(awk '/\(Beta\)/ {flag=1} /Build:/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*Build: \([A-Z0-9.]*\).*/\1/p' | head -n1)"
 
         # Extract the incremental value (based on the ID)
         INCREMENTAL="$(grep -o "$ID-[0-9]*-" DL_GSI_HTML | sed "s/$ID-//g" | sed 's/-//g' | head -n1)"
