@@ -3,10 +3,8 @@
 # Using util_functions.sh
 [ -f "util_functions.sh" ] && . ./util_functions.sh || { echo "util_functions.sh not found" && exit 1; }
 
-if [ -z "$1" ]; then
-  print_message "No OTA device name provided" error
-  exit 1
-fi
+# At least one argument has to be provided
+[ -z "$1" ] && print_message "Please provide at least one argument (OTA device codename) !" error
 
 print_message "Downloading OTA builds for the following devices: $(
   IFS=,
@@ -27,8 +25,11 @@ for device_name in "$@"; do # Loop over each argument (device name)
   # Extract any possible Android version from the device name
   android_version=$(echo "$device_name" | grep -oP '\K\d+')
 
-  # Check if the Android version is between 14 and 15, otherwise fallback to 14
-  [[ $android_version -ge 14 && $android_version -le 15 ]] || android_version=14
+  # Check if the Android version is between 14 and 16, otherwise print warning
+  [[ $android_version -ge 14 && $android_version -le 16 ]] || print_message "Android version isn't between 14 and 16, Trying anyway…" warning
+
+  # Assign android_version, defaulting to 15 if not set
+  android_version="${android_version:-15}"
 
   # Remove any numbers from the device name
   device_name=${device_name//[^[:alpha:]_]/}
@@ -59,6 +60,9 @@ for device_name in "$@"; do # Loop over each argument (device name)
     # wget --tries=inf --show-progress -P ./dl -q "$last_build_url" &
   fi
 done
+
+# Check if the URL list has at least one item
+[ ${#BUILD_URL_LIST[@]} -lt 1 ] && print_message "No download were found for the specified model or version." error
 
 # Download the build using aria2
 aria2c -Z -m0 -x16 -s16 -j16 --enable-rpc=false --optimize-concurrent-downloads=true --disable-ipv6=true --allow-overwrite=true --remove-control-file=true --always-resume=true --download-result=full --summary-interval=0 -d ./dl "${BUILD_URL_LIST[@]}"

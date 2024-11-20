@@ -27,7 +27,7 @@ for file in ./dl/*; do                                      # Iterate through fi
 
 			# Skip image if it failed to get extracted
 			if ! 7z e "$file" -o"$EAI" "payload.bin" -r &>/dev/null; then
-				print_message "Failed to extract payload.bin from $file using 7z. Skipping…\n" error
+				print_message "Failed to extract payload.bin from $file using 7z. Skipping…\n" warning
 				continue
 			fi
 
@@ -39,7 +39,7 @@ for file in ./dl/*; do                                      # Iterate through fi
 
 			# Skip image if it failed to get extracted
 			if ! 7z e "$file" -o"$EAI_BP" -r -y &>/dev/null; then
-				print_message "Failed to extract everything from $file. Skipping…" error
+				print_message "Failed to extract everything from $file. Skipping…" warning
 				continue
 			fi
 		fi
@@ -79,7 +79,7 @@ if [ -d "$EAI_BP" ]; then
 
 					# Skip image if it failed to get extracted
 					if ! payload_dumper "$file" --partitions="$partitionsArgs" --out="$EI_BP/$basename" 2>/dev/null; then
-						print_message "Failed to extract $file using Android OTA Dumper. Skipping…\n" error
+						print_message "Failed to extract $file using Android OTA Dumper. Skipping…\n" warning
 						rm -rf "$EI_BP/$basename" # TODO: Use "${var:?}" to ensure this never expands to / .
 						continue
 					fi
@@ -89,7 +89,7 @@ if [ -d "$EAI_BP" ]; then
 
 						# Skip image if it failed to get extracted
 						if ! 7z e "$file" -o"$EI_BP/$basename" "$image_name.img" -r &>/dev/null; then
-							print_message "Failed to extract $image_name.img from $file using 7z. Skipping…\n" error
+							print_message "Failed to extract $image_name.img from $file using 7z. Skipping…\n" warning
 							rm -rf "$EI_BP/$basename/$image_name.img"
 							continue
 						fi

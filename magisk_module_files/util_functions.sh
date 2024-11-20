@@ -110,7 +110,7 @@ volume_key_event_setval() {
     fi
 
     # Wait some time before checking again
-    sleep 0.3
+    sleep 0.5
   done
 }
 
@@ -198,6 +198,6 @@ volume_key_event_setoption() {
     fi
 
     # Wait some time before checking again
-    sleep 0.3
+    sleep 0.5
   done
 }
