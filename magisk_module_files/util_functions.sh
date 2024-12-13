@@ -11,6 +11,9 @@ abort() {
   echo ""
   echo " ! $1"
   echo ""
+
+  # Remove module on next reboot (in case of failure)
+  touch "$MODPATH/remove"
   sleep 5
   exit 1
 }
@@ -79,57 +82,80 @@ download_file() {
 
 # Function to handle volume key events and set variables.
 volume_key_event_setval() {
-  option_name=$1
-  option1=$2
-  option2=$3
-  result_var=$4
+  if [ $# -ne 4 ]; then
+    abort "Error: volume_key_event_setval() expects 4 arguments: option_name, option1, option2, result_var"
+  fi
 
+  option_name="$1"
+  option1="$2"
+  option2="$3"
+  result_var="$4"
+
+  # POSIX-compliant check for valid variable name
+  case "$result_var" in
+  '' | *[!_a-zA-Z]* | *[!_a-zA-Z0-9]*)
+    abort "Error: Invalid variable name provided: \"$result_var\""
+    ;;
+  esac
+
+  key_yes="${KEY_YES:-VOLUMEUP}"
+  key_no="${KEY_NO:-VOLUMEDOWN}"
+  key_cancel="${KEY_CANCEL:-POWER}"
   echo " *********************************"
   echo " *      [ VOL+ ] = [ YES ]       *"
   echo " *      [ VOL- ] = [ NO ]        *"
   echo " *      [ POWR ] = [ CANCEL ]    *"
   echo " *********************************"
-  echo " * Choose your value for \"$option_name\" !"
+  echo " * Choose your value for \"$option_name\""
   echo " *********************************"
 
   while :; do
-    keys=$(getevent -lqc1)
+    key=$(getevent -lqc1 | grep -oE "$key_yes|$key_no|$key_cancel")
 
-    if echo "$keys" | grep -q 'VOLUMEUP'; then
+    # Check if getevent succeeded
+    if [ -z "$key" ] && [ $? -ne 0 ]; then
+      echo "Warning: getevent command failed. Retrying..." >&2
+      sleep 1
+      continue
+    fi
+
+    case "$key" in
+    "$key_yes")
       echo " - Option \"$option_name\" set to \"$option1\""
       echo " *********************************"
       eval "$result_var='$option1'"
-      return 1
-    elif echo "$keys" | grep -q 'VOLUMEDOWN'; then
+      sleep 0.5
+      return 0
+      ;;
+    "$key_no")
       echo " - Option \"$option_name\" set to \"$option2\""
       echo " *********************************"
       eval "$result_var='$option2'"
-      return 1
-    elif echo "$keys" | grep -q 'POWER'; then
-      abort "Power key detected! Canceling…"
-    fi
-
-    # Wait some time before checking again
-    sleep 0.5
+      sleep 0.5
+      return 0
+      ;;
+    "$key_cancel")
+      abort "Cancel key detected! Canceling…"
+      ;;
+    esac
   done
 }
 
 # Function to handle volume key events and set variables from a list of options.
 volume_key_event_setoption() {
-  option_name=$1
+  option_name="$1"
   options_list=$2 # Space-separated list of options
-  result_var=$3
+  result_var="$3"
+
+  # Check for valid variable name
+  case "$result_var" in
+  '' | *[!_a-zA-Z]* | *[!_a-zA-Z0-9]*)
+    abort "Error: Invalid variable name provided: \"$result_var\""
+    ;;
+  esac
 
   # Shift to remove the first three arguments (option_name, options_list, result_var)
   shift 1
-
-  echo " *********************************"
-  echo " *    [ VOL+ ] = [ CONFIRM ]     *"
-  echo " *  [ VOL- ] = [ NEXT OPTION ]   *"
-  echo " *     [ POWR ] = [ CANCEL ]     *"
-  echo " *********************************"
-  echo " * Choose your value for \"$option_name\" !"
-  echo " *********************************"
 
   # Sanitize the options list (ensure no extra spaces)
   options_list=$(echo "$options_list" | tr -s ' ')
@@ -137,16 +163,26 @@ volume_key_event_setoption() {
   # Store the original positional parameters in a temporary variable
   original_options="$*"
 
-  # Set the options as positional parameters ($1, $2, ..., $N)
+  # Convert options list to an array (using positional parameters)
   set -- $(echo "$options_list")
+  total_options=$#
 
-  total_options=$# # Number of options
-
-  # If only one option is available, automatically select it
+  # If only one option, select it
   if [ "$total_options" -eq 1 ]; then
     eval "$result_var='$1'"
     return 0
   fi
+
+  key_yes="${KEY_YES:-VOLUMEUP}"
+  key_no="${KEY_NO:-VOLUMEDOWN}"
+  key_cancel="${KEY_CANCEL:-POWER}"
+  echo " *********************************"
+  echo " *    [ VOL+ ] = [ CONFIRM ]     *"
+  echo " *  [ VOL- ] = [ NEXT OPTION ]   *"
+  echo " *     [ POWR ] = [ CANCEL ]     *"
+  echo " *********************************"
+  echo " * Choose your value for \"$option_name\" !"
+  echo " *********************************"
 
   # Display the options once
   # i=1
@@ -166,21 +202,28 @@ volume_key_event_setoption() {
   eval "current_option=\$${selected_option}"
   ui_print " > $current_option"
 
-  # Loop to capture key events and update selection
   while :; do
-    # Capture key events
-    keys=$(getevent -lqc1)
+    key=$(getevent -lqc1 | grep -oE "$key_yes|$key_no|$key_cancel")
 
-    if echo "$keys" | grep -q 'VOLUMEUP'; then
-      # Confirm selection
-      ui_print " - Option \"$option_name\" set to \"$current_option\""
+    # Check if getevent succeeded
+    if [ -z "$key" ] && [ $? -ne 0 ]; then
+      echo "Warning: getevent command failed. Retrying..." >&2
+      sleep 1
+      continue
+    fi
+
+    case "$key" in
+    "$key_yes")
+      echo " - Option \"$option_name\" set to \"$current_option\""
+      echo " *********************************"
       eval "$result_var='$current_option'"
+      sleep 1
       return 0 # Return success
-    elif echo "$keys" | grep -q 'VOLUMEDOWN'; then
-      # Move to next option
+      ;;
+    "$key_no")
       selected_option=$((selected_option + 1))
       if [ "$selected_option" -gt "$total_options" ]; then
-        selected_option=1 # Wrap around to the first option
+        selected_option=1
       fi
 
       # Use shift to get the selected option
@@ -191,11 +234,12 @@ volume_key_event_setoption() {
         i=$((i + 1))
       done
       current_option="$1"
-
       ui_print " > $current_option"
-    elif echo "$keys" | grep -q 'POWER'; then
-      abort "Power key detected, Cancelling…"
-    fi
+      ;;
+    "$key_cancel")
+      abort "Cancel key detected, Cancelling…"
+      ;;
+    esac
 
     # Wait some time before checking again
     sleep 0.5

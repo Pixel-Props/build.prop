@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Those are the only partitions we need for building properties
-declare PARTITIONS2EXTRACT=("product" "vendor" "system" "system_ext")
+declare PARTITIONS2EXTRACT=("product" "vendor" "vendor_dlkm" "system" "system_ext" "system_dlkm")
 
 [[ $(type -t "print_message") != function ]] && . ./util_functions.sh
 

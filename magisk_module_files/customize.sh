@@ -44,6 +44,9 @@ checksum_sha256() {
     done
 }
 
+# Prevent the case module is set to be removed at install
+[ -f "$MODPATH/remove" ] && rm -f "$MODPATH/remove"
+
 # Define the path of busybox using find and set it to $PATH then export it
 if ! command -v busybox >/dev/null 2>&1; then
     BUSYBOX_PATH=$(find "/data/adb" -maxdepth 3 -name busybox -exec dirname {} \; | tr '\n' ':')
@@ -95,6 +98,9 @@ ui_print "- Installing, $MODPROP_MODEL ($MODPROP_PRODUCT) [A$MODPROP_VERSION-S$M
 
 # Checksum SHA256
 checksum_sha256
+
+# Running the gms_doze using busybox
+[ -f "$MODPATH/action.sh" ] && busybox sh "$MODPATH"/gms_doze.sh 2>&1
 
 # Running the action early using busybox
 [ -f "$MODPATH/action.sh" ] && busybox sh "$MODPATH"/action.sh 2>&1

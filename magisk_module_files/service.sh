@@ -125,7 +125,7 @@ EOF
         check_and_update_prop "ro.soc.manufacturer" "ro.soc.manufacturer" "SOC_MANUFACTURER" "$comparison"
         ;;
       sdk)
-        local prefixes="build product vendor system system_ext"
+        local prefixes="build product vendor vendor_dlkm system system_ext system_dlkm"
         local versions="sdk incremental release release_or_codename"
 
         for prefix in $prefixes; do
