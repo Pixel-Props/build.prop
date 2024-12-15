@@ -32,7 +32,6 @@ jobs:
     needs: prepare_build
     strategy:
       matrix:
-        # Devices to build props for
         device_name: [comet, komodo, caiman, tokay, akita, husky, shiba, cheetah, raven, redfin]
 
     runs-on: ubuntu-24.04
@@ -67,6 +66,8 @@ jobs:
 
       - name: Check if module build ID already exists
         id: check_build_id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
           BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
