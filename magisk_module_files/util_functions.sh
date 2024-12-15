@@ -108,35 +108,35 @@ volume_key_event_setval() {
   key_yes="${KEY_YES:-VOLUMEUP}"
   key_no="${KEY_NO:-VOLUMEDOWN}"
   key_cancel="${KEY_CANCEL:-POWER}"
-  echo " *********************************"
-  echo " *      [ VOL+ ] = [ YES ]       *"
-  echo " *      [ VOL- ] = [ NO ]        *"
-  echo " *      [ POWR ] = [ CANCEL ]    *"
-  echo " *********************************"
-  echo " * Choose your value for \"$option_name\""
-  echo " *********************************"
+  ui_print " *********************************"
+  ui_print " *      [ VOL+ ] = [ YES ]       *"
+  ui_print " *      [ VOL- ] = [ NO ]        *"
+  ui_print " *      [ POWR ] = [ CANCEL ]    *"
+  ui_print " *********************************"
+  ui_print " * Choose your value for \"$option_name\""
+  ui_print " *********************************"
 
   while :; do
     key=$(getevent -lqc1 | grep -oE "$key_yes|$key_no|$key_cancel")
 
     # Check if getevent succeeded
     if [ -z "$key" ] && [ $? -ne 0 ]; then
-      echo "Warning: getevent command failed. Retrying..." >&2
+      ui_print "Warning: getevent command failed. Retrying..." >&2
       sleep 1
       continue
     fi
 
     case "$key" in
     "$key_yes")
-      echo " - Option \"$option_name\" set to \"$option1\""
-      echo " *********************************"
+      ui_print " - Option \"$option_name\" set to \"$option1\""
+      ui_print " *********************************"
       eval "$result_var='$option1'"
       sleep 0.5
       return 0
       ;;
     "$key_no")
-      echo " - Option \"$option_name\" set to \"$option2\""
-      echo " *********************************"
+      ui_print " - Option \"$option_name\" set to \"$option2\""
+      ui_print " *********************************"
       eval "$result_var='$option2'"
       sleep 0.5
       return 0
@@ -183,13 +183,13 @@ volume_key_event_setoption() {
   key_yes="${KEY_YES:-VOLUMEUP}"
   key_no="${KEY_NO:-VOLUMEDOWN}"
   key_cancel="${KEY_CANCEL:-POWER}"
-  echo " *********************************"
-  echo " *    [ VOL+ ] = [ CONFIRM ]     *"
-  echo " *  [ VOL- ] = [ NEXT OPTION ]   *"
-  echo " *     [ POWR ] = [ CANCEL ]     *"
-  echo " *********************************"
-  echo " * Choose your value for \"$option_name\" !"
-  echo " *********************************"
+  ui_print " *********************************"
+  ui_print " *    [ VOL+ ] = [ CONFIRM ]     *"
+  ui_print " *  [ VOL- ] = [ NEXT OPTION ]   *"
+  ui_print " *     [ POWR ] = [ CANCEL ]     *"
+  ui_print " *********************************"
+  ui_print " * Choose your value for \"$option_name\" !"
+  ui_print " *********************************"
 
   # Display the options once
   # i=1
@@ -214,15 +214,15 @@ volume_key_event_setoption() {
 
     # Check if getevent succeeded
     if [ -z "$key" ] && [ $? -ne 0 ]; then
-      echo "Warning: getevent command failed. Retrying..." >&2
+      ui_print "Warning: getevent command failed. Retrying..." >&2
       sleep 1
       continue
     fi
 
     case "$key" in
     "$key_yes")
-      echo " - Option \"$option_name\" set to \"$current_option\""
-      echo " *********************************"
+      ui_print " - Option \"$option_name\" set to \"$current_option\""
+      ui_print " *********************************"
       eval "$result_var='$current_option'"
       sleep 1
       return 0 # Return success

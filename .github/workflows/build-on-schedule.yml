@@ -9,9 +9,6 @@ jobs:
   prepare_build:
     name: Create release
     runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      id: ${{ steps.create_release.outputs.id }}
     steps:
       - name: Determine tag name
         id: get_tag_name
@@ -73,8 +70,8 @@ jobs:
         run: |
           BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
           BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
-          EXISTING_RELEASE_NOTES=$(curl --silent "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[].body')
-          if echo "$EXISTING_RELEASE_NOTES" | grep -q "${BASENAME}_${BUILD_ID}"; then
+          EXISTING_RELEASE_NOTES=$(gh release list --limit 100 | grep -oE "${BASENAME}_${BUILD_ID}")
+          if [[ -n "$EXISTING_RELEASE_NOTES" ]]; then
             echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
           else
             echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT
@@ -85,7 +82,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.prepare_build.outputs.upload_url }}
+          upload_url: ${{ needs.prepare_build.outputs.create_release.outputs.upload_url }}
           asset_path: ./${{ steps.extract_and_build.outputs.module_base_name }}.zip
           asset_name: ${{ steps.extract_and_build.outputs.module_base_name }}.zip
           asset_content_type: application/zip
@@ -95,7 +92,7 @@ jobs:
         uses: irongut/EditRelease@v1.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          id: ${{ needs.prepare_build.outputs.id }}
+          id: ${{ needs.prepare_build.outputs.create_release.outputs.id }}
           replacebody: false
           body: |
             ## ${{ steps.extract_and_build.outputs.device_name }} (${{ steps.extract_and_build.outputs.device_codename }})
