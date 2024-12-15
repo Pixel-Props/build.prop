@@ -6,20 +6,37 @@ if [ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/'; then
   MODPATH="$(dirname "$(readlink -f "$0")")"
 fi
 
-# Function to abort the script with an error message.
-abort() {
-  echo ""
-  echo " ! $1"
-  echo ""
-
-  # Remove module on next reboot (in case of failure)
-  touch "$MODPATH/remove"
-  sleep 5
-  exit 1
+# Function that normalizes a boolean value and returns 1 or 0
+# Usage: boolval "value" || echo $?
+boolval() {
+  case "$(printf "%s" "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+  1 | true | on | enabled) return 0 ;;    # Truely
+  0 | false | off | disabled) return 1 ;; # Falsely
+  *) return 0 ;;                          # Everything else
+  esac
 }
 
 # Function to print a message to the user interface.
 ui_print() { echo "$1"; }
+
+# Function to abort the script with an error message.
+abort() {
+  message="$1"
+  remove_module=$(boolval "${2:-true}")
+
+  ui_print ""
+  ui_print " ! $message"
+
+  # Remove module on next reboot if requested
+  if [ "$remove_module" -eq 0 ]; then
+    touch "$MODPATH/remove"
+    ui_print " ! The module will be removed on next reboot !"
+  fi
+  ui_print ""
+
+  sleep 5
+  exit 1
+}
 
 # Function to find all .prop files within a specified directory
 find_prop_files() {
@@ -39,16 +56,6 @@ grep_prop() {
   if [ -n "$FILES_or_VAR" ]; then
     echo "$FILES_or_VAR" | grep -m1 "^$PROP=" 2>/dev/null | cut -d= -f2- | head -n 1
   fi
-}
-
-# Function that normalizes a boolean value and returns 1 or 0
-# Usage: boolval "value" || echo $?
-boolval() {
-  case "$(printf "%s" "${1:-}" | tr '[:upper:]' '[:lower:]')" in
-  1 | true | on | enabled) return 0 ;;    # Truely
-  0 | false | off | disabled) return 1 ;; # Falsely
-  *) return 0 ;;                          # Everything else
-  esac
 }
 
 # Function to download a file using curl or wget with retry mechanism
@@ -135,7 +142,7 @@ volume_key_event_setval() {
       return 0
       ;;
     "$key_cancel")
-      abort "Cancel key detected! Canceling…"
+      abort "Cancel key detected! Canceling…" false
       ;;
     esac
   done
@@ -237,7 +244,7 @@ volume_key_event_setoption() {
       ui_print " > $current_option"
       ;;
     "$key_cancel")
-      abort "Cancel key detected, Cancelling…"
+      abort "Cancel key detected, Cancelling…" false
       ;;
     esac
 

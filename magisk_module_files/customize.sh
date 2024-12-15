@@ -100,7 +100,7 @@ ui_print "- Installing, $MODPROP_MODEL ($MODPROP_PRODUCT) [A$MODPROP_VERSION-S$M
 checksum_sha256
 
 # Running the gms_doze using busybox
-[ -f "$MODPATH/action.sh" ] && busybox sh "$MODPATH"/gms_doze.sh 2>&1
+# [ -f "$MODPATH/gms_doze.sh" ] && busybox sh "$MODPATH"/gms_doze.sh 2>&1
 
 # Running the action early using busybox
 [ -f "$MODPATH/action.sh" ] && busybox sh "$MODPATH"/action.sh 2>&1

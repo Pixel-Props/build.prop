@@ -9,6 +9,12 @@ MODPATH="${0%/*}"
 # Using util_functions.sh
 [ -f "$MODPATH/util_functions.sh" ] && . "$MODPATH/util_functions.sh" || abort "! util_functions.sh not found!"
 
+###
+# This feature has been disabled for now as it introduced issues with Play Services,
+# Causing crashes, and resulting on not being able to update apps from Play Store.
+# Ref: https://github.com/gloeyisk/universal-gms-doze/issues/62
+###
+
 # Remove setting allowing application to bypass Doze/power-save restrictions. (GMS Doze)
 ALLOW_DOZE_PACKAGES="com.google.android.gms"
 BLACKLISTED_CONFIGS="allow-in-power-save allow-in-data-usage-save"

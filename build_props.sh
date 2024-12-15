@@ -70,6 +70,7 @@ to_system_prop "# end common build properties
 
 # begin PRODUCT_PRODUCT_PROPERTIES"
 build_system_prop "ro.opa.eligible_device"
+build_system_prop "ro.com.google.clientidbase"
 build_system_prop "ro.com.google.ime.theme_id"
 build_system_prop "ro.com.google.ime.system_lm_dir"
 build_system_prop "ro.support_one_handed_mode"
@@ -126,25 +127,32 @@ build_system_prop "ro.vendor.build.version.sdk"
 to_system_prop "# end common build properties
 
 # begin PRODUCT_VENDOR_PROPERTIES"
-# add_prop_as_ini to_system_prop "ro.hardware" "$device_for_attestation"
-# build_system_prop "ro.hardware.egl"
-# build_system_prop "ro.hardware.vulkan"
 build_system_prop "ro.soc.model"
 build_system_prop "ro.soc.manufacturer"
+# build_system_prop "ro.hardware.egl"
+# build_system_prop "ro.hardware.vulkan"
 to_system_prop "# end PRODUCT_VENDOR_PROPERTIES
 
 # begin ADDITIONAL_VENDOR_PROPERTIES"
-# build_system_prop "ro.product.board"
 build_system_prop "ro.product.first_api_level"
 build_system_prop "ro.vendor.build.security_patch"
+# build_system_prop "ro.product.board"
 # build_system_prop "ro.board.platform"
+# add_prop_as_ini to_system_prop "ro.hardware" "$device_for_attestation"
 to_system_prop "# end ADDITIONAL_VENDOR_PROPERTIES
 
 # begin PRODUCT_PROPERTY_OVERRIDES"
+build_system_prop "keyguard.no_require_sim"
 build_system_prop "debug.sf.enable_sdr_dimming"
 build_system_prop "debug.sf.dim_in_gamma_in_enhanced_screenshots"
+build_system_prop "ro.hardware.keystore_desede"
+build_system_prop "ro.hardware.keystore"
+build_system_prop "ro.hardware.gatekeeper"
 build_system_prop "persist.vendor.enable.thermal.genl"
 build_system_prop "ro.incremental.enable"
+build_system_prop "ro.build.device_family"
+add_prop_as_ini to_system_prop "vendor.usb.product_string" "$model_for_attestation"
+# add_prop_as_ini to_system_prop "bluetooth.device.default_name" "$model_for_attestation"
 to_system_prop "# end PRODUCT_PROPERTY_OVERRIDES
 
 ###
@@ -345,6 +353,21 @@ to_system_prop "# end common build properties
 
 ###
 # end system_dlkm/etc/build.prop
+###
+
+###
+# begin of custom props
+###
+
+# begin common build properties"
+add_prop_as_ini to_system_prop "ro.product.marketname" "$model_for_attestation"
+add_prop_as_ini to_system_prop "ro.boot.hwname" "$device_for_attestation"
+add_prop_as_ini to_system_prop "ro.product.hardware.sku" "$device_for_attestation"
+add_prop_as_ini to_system_prop "ro.custom.device" "$device_for_attestation"
+to_system_prop "# end common build properties
+
+###
+# end of custom props
 ###"
 
 # Save the system.prop file
