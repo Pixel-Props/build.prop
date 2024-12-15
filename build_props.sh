@@ -21,10 +21,19 @@ module_prop=""
 ###
 
 brand_for_attestation="$(grep_prop "ro.product.brand_for_attestation" "$EXT_PROP_CONTENT")"
+[ -z "$brand_for_attestation" ] && brand_for_attestation="$(grep_prop "ro.product.vendor.brand" "$EXT_PROP_CONTENT")"
+
 device_for_attestation="$(grep_prop "ro.product.device_for_attestation" "$EXT_PROP_CONTENT")"
+[ -z "$device_for_attestation" ] && device_for_attestation="$(grep_prop "ro.product.vendor.device" "$EXT_PROP_CONTENT")"
+
 manufacturer_for_attestation="$(grep_prop "ro.product.manufacturer_for_attestation" "$EXT_PROP_CONTENT")"
+[ -z "$manufacturer_for_attestation" ] && manufacturer_for_attestation="$(grep_prop "ro.product.vendor.manufacturer" "$EXT_PROP_CONTENT")"
+
 model_for_attestation="$(grep_prop "ro.product.model_for_attestation" "$EXT_PROP_CONTENT")"
+[ -z "$model_for_attestation" ] && model_for_attestation="$(grep_prop "ro.product.vendor.model" "$EXT_PROP_CONTENT")"
+
 name_for_attestation="$(grep_prop "ro.product.name_for_attestation" "$EXT_PROP_CONTENT")"
+[ -z "$name_for_attestation" ] && name_for_attestation="$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")"
 
 # Build our system.prop
 to_system_prop "##
