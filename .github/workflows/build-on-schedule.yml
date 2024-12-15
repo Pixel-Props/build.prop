@@ -68,16 +68,30 @@ jobs:
         id: check_build_id
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
           BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
-          echo "Checking if build ID ${BASENAME}_${BUILD_ID} exists..."
-          EXISTING_RELEASE_NOTES=$(gh release list --limit 100 | grep -oE "${BASENAME}_${BUILD_ID}")
-          if [[ -n "$EXISTING_RELEASE_NOTES" ]]; then
-            echo "Build ID ${BASENAME}_${BUILD_ID} already exists."
+          echo "Checking if build ID ${BASENAME}_${BUILD_ID} exists in release notes..."
+
+          # Get the list of all releases
+          RELEASES=$(gh release list --limit 100 --json tagName -q '.[].tagName')
+
+          # Search each release's body for the BUILD_ID
+          BUILD_EXISTS=false
+          for TAG in $RELEASES; do
+            echo "Checking release: $TAG"
+            RELEASE_BODY=$(gh release view "$TAG" --json body -q .body || true)
+            if [[ "$RELEASE_BODY" == *"${BASENAME}_${BUILD_ID}"* ]]; then
+              echo "Build ID ${BASENAME}_${BUILD_ID} found in release $TAG."
+              BUILD_EXISTS=true
+              break
+            fi
+          done
+
+          if [[ "$BUILD_EXISTS" == "true" ]]; then
             echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
           else
-            echo "Build ID ${BASENAME}_${BUILD_ID} does not exist."
             echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT
           fi
 
