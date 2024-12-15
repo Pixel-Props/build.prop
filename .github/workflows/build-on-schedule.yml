@@ -32,7 +32,7 @@ jobs:
     needs: prepare_build
     strategy:
       matrix:
-        device_name: [comet, komodo, caiman, tokay, akita, husky, shiba, cheetah, raven, redfin]
+        device_name: [comet, komodo, caiman, husky, tangorpro, felix, cheetah]
 
     runs-on: ubuntu-24.04
     steps:
@@ -71,10 +71,13 @@ jobs:
         run: |
           BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
           BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
+          echo "Checking if build ID ${BASENAME}_${BUILD_ID} exists..."
           EXISTING_RELEASE_NOTES=$(gh release list --limit 100 | grep -oE "${BASENAME}_${BUILD_ID}")
           if [[ -n "$EXISTING_RELEASE_NOTES" ]]; then
+            echo "Build ID ${BASENAME}_${BUILD_ID} already exists."
             echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
           else
+            echo "Build ID ${BASENAME}_${BUILD_ID} does not exist."
             echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT
           fi
 
