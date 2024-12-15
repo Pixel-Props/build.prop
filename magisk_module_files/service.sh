@@ -150,6 +150,6 @@ EOF
 # Main execution
 ui_print "- Running Sensitive MODPROP checks…"
 ui_print " ? When a property was detected as unsafe, It will be removed / commented out from the module property."
-ui_print " ? To remove a property set it to true and It will be removed / commented out from the module property."
+ui_print " ? To REMOVE a property set it to TRUE and It will be removed / commented out from the module property."
 init_config
 sensitive_checks

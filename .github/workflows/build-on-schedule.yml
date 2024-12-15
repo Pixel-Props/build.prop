@@ -35,8 +35,7 @@ jobs:
     needs: prepare_build
     strategy:
       matrix:
-        # Devices to build props for
-        device_name: [comet, komodo, caiman, tokay, akita, husky, shiba, cheetah, raven, redfin]
+        device_name: [comet, komodo, caiman, husky, tangorpro, felix, cheetah]
 
     runs-on: ubuntu-24.04
     steps:
@@ -70,11 +69,30 @@ jobs:
 
       - name: Check if module build ID already exists
         id: check_build_id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
           BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
-          EXISTING_RELEASE_NOTES=$(curl --silent "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[].body')
-          if echo "$EXISTING_RELEASE_NOTES" | grep -q "${BASENAME}_${BUILD_ID}"; then
+          echo "Checking if build ID ${BASENAME}_${BUILD_ID} exists in release notes..."
+
+          # Get the list of all releases
+          RELEASES=$(gh release list --limit 100 --json tagName -q '.[].tagName')
+
+          # Search each release's body for the BUILD_ID
+          BUILD_EXISTS=false
+          for TAG in $RELEASES; do
+            echo "Checking release: $TAG"
+            RELEASE_BODY=$(gh release view "$TAG" --json body -q .body || true)
+            if [[ "$RELEASE_BODY" == *"${BASENAME}_${BUILD_ID}"* ]]; then
+              echo "Build ID ${BASENAME}_${BUILD_ID} found in release $TAG."
+              BUILD_EXISTS=true
+              break
+            fi
+          done
+
+          if [[ "$BUILD_EXISTS" == "true" ]]; then
             echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
           else
             echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT

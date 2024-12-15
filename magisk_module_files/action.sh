@@ -50,7 +50,7 @@ PlayIntegrityFix() {
 
   # Check if PIF_MODULE_DIR is a directory and module.prop exists and is not empty
   if [[ ! -d "$PIF_MODULE_DIR" || ! -s "$PIF_MODULE_DIR/module.prop" ]]; then
-    abort "PlayIntegrityFix module is missing or is not accessible, Skipping !"
+    abort "PlayIntegrityFix module is missing or is not accessible, Skipping !" false
   fi
 
   # Check whether we are about to build pif.json for PIF Fork or not

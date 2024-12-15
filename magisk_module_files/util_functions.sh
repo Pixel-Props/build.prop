@@ -6,20 +6,37 @@ if [ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/'; then
   MODPATH="$(dirname "$(readlink -f "$0")")"
 fi
 
-# Function to abort the script with an error message.
-abort() {
-  echo ""
-  echo " ! $1"
-  echo ""
-
-  # Remove module on next reboot (in case of failure)
-  touch "$MODPATH/remove"
-  sleep 5
-  exit 1
+# Function that normalizes a boolean value and returns 1 or 0
+# Usage: boolval "value" || echo $?
+boolval() {
+  case "$(printf "%s" "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+  1 | true | on | enabled) return 0 ;;    # Truely
+  0 | false | off | disabled) return 1 ;; # Falsely
+  *) return 0 ;;                          # Everything else
+  esac
 }
 
 # Function to print a message to the user interface.
 ui_print() { echo "$1"; }
+
+# Function to abort the script with an error message.
+abort() {
+  message="$1"
+  remove_module=$(boolval "${2:-true}")
+
+  ui_print ""
+  ui_print " ! $message"
+
+  # Remove module on next reboot if requested
+  if [ "$remove_module" -eq 0 ]; then
+    touch "$MODPATH/remove"
+    ui_print " ! The module will be removed on next reboot !"
+  fi
+  ui_print ""
+
+  sleep 5
+  exit 1
+}
 
 # Function to find all .prop files within a specified directory
 find_prop_files() {
@@ -39,16 +56,6 @@ grep_prop() {
   if [ -n "$FILES_or_VAR" ]; then
     echo "$FILES_or_VAR" | grep -m1 "^$PROP=" 2>/dev/null | cut -d= -f2- | head -n 1
   fi
-}
-
-# Function that normalizes a boolean value and returns 1 or 0
-# Usage: boolval "value" || echo $?
-boolval() {
-  case "$(printf "%s" "${1:-}" | tr '[:upper:]' '[:lower:]')" in
-  1 | true | on | enabled) return 0 ;;    # Truely
-  0 | false | off | disabled) return 1 ;; # Falsely
-  *) return 0 ;;                          # Everything else
-  esac
 }
 
 # Function to download a file using curl or wget with retry mechanism
@@ -101,41 +108,41 @@ volume_key_event_setval() {
   key_yes="${KEY_YES:-VOLUMEUP}"
   key_no="${KEY_NO:-VOLUMEDOWN}"
   key_cancel="${KEY_CANCEL:-POWER}"
-  echo " *********************************"
-  echo " *      [ VOL+ ] = [ YES ]       *"
-  echo " *      [ VOL- ] = [ NO ]        *"
-  echo " *      [ POWR ] = [ CANCEL ]    *"
-  echo " *********************************"
-  echo " * Choose your value for \"$option_name\""
-  echo " *********************************"
+  ui_print " *********************************"
+  ui_print " *      [ VOL+ ] = [ YES ]       *"
+  ui_print " *      [ VOL- ] = [ NO ]        *"
+  ui_print " *      [ POWR ] = [ CANCEL ]    *"
+  ui_print " *********************************"
+  ui_print " * Choose your value for \"$option_name\""
+  ui_print " *********************************"
 
   while :; do
     key=$(getevent -lqc1 | grep -oE "$key_yes|$key_no|$key_cancel")
 
     # Check if getevent succeeded
     if [ -z "$key" ] && [ $? -ne 0 ]; then
-      echo "Warning: getevent command failed. Retrying..." >&2
+      ui_print "Warning: getevent command failed. Retrying..." >&2
       sleep 1
       continue
     fi
 
     case "$key" in
     "$key_yes")
-      echo " - Option \"$option_name\" set to \"$option1\""
-      echo " *********************************"
+      ui_print " - Option \"$option_name\" set to \"$option1\""
+      ui_print " *********************************"
       eval "$result_var='$option1'"
       sleep 0.5
       return 0
       ;;
     "$key_no")
-      echo " - Option \"$option_name\" set to \"$option2\""
-      echo " *********************************"
+      ui_print " - Option \"$option_name\" set to \"$option2\""
+      ui_print " *********************************"
       eval "$result_var='$option2'"
       sleep 0.5
       return 0
       ;;
     "$key_cancel")
-      abort "Cancel key detected! Canceling…"
+      abort "Cancel key detected! Canceling…" false
       ;;
     esac
   done
@@ -176,13 +183,13 @@ volume_key_event_setoption() {
   key_yes="${KEY_YES:-VOLUMEUP}"
   key_no="${KEY_NO:-VOLUMEDOWN}"
   key_cancel="${KEY_CANCEL:-POWER}"
-  echo " *********************************"
-  echo " *    [ VOL+ ] = [ CONFIRM ]     *"
-  echo " *  [ VOL- ] = [ NEXT OPTION ]   *"
-  echo " *     [ POWR ] = [ CANCEL ]     *"
-  echo " *********************************"
-  echo " * Choose your value for \"$option_name\" !"
-  echo " *********************************"
+  ui_print " *********************************"
+  ui_print " *    [ VOL+ ] = [ CONFIRM ]     *"
+  ui_print " *  [ VOL- ] = [ NEXT OPTION ]   *"
+  ui_print " *     [ POWR ] = [ CANCEL ]     *"
+  ui_print " *********************************"
+  ui_print " * Choose your value for \"$option_name\" !"
+  ui_print " *********************************"
 
   # Display the options once
   # i=1
@@ -207,15 +214,15 @@ volume_key_event_setoption() {
 
     # Check if getevent succeeded
     if [ -z "$key" ] && [ $? -ne 0 ]; then
-      echo "Warning: getevent command failed. Retrying..." >&2
+      ui_print "Warning: getevent command failed. Retrying..." >&2
       sleep 1
       continue
     fi
 
     case "$key" in
     "$key_yes")
-      echo " - Option \"$option_name\" set to \"$current_option\""
-      echo " *********************************"
+      ui_print " - Option \"$option_name\" set to \"$current_option\""
+      ui_print " *********************************"
       eval "$result_var='$current_option'"
       sleep 1
       return 0 # Return success
@@ -237,7 +244,7 @@ volume_key_event_setoption() {
       ui_print " > $current_option"
       ;;
     "$key_cancel")
-      abort "Cancel key detected, Cancelling…"
+      abort "Cancel key detected, Cancelling…" false
       ;;
     esac
 
