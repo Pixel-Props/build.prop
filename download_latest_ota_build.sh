@@ -65,5 +65,5 @@ done
 [ ${#BUILD_URL_LIST[@]} -lt 1 ] && print_message "No download were found for the specified model or version." error
 
 # Download the build using aria2
-aria2c -Z -m0 -x16 -s16 -j16 --enable-rpc=false --optimize-concurrent-downloads=true --disable-ipv6=true --allow-overwrite=true --remove-control-file=true --always-resume=true --download-result=full --summary-interval=0 -d ./dl "${BUILD_URL_LIST[@]}"
+aria2c -Z -m0 -x16 -s16 -j16 --file-allocation=none --enable-rpc=false --optimize-concurrent-downloads=true --disable-ipv6=true --allow-overwrite=true --remove-control-file=true --always-resume=true --download-result=full --summary-interval=0 -d ./dl "${BUILD_URL_LIST[@]}"
 print_message "Download complete" info

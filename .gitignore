@@ -4,6 +4,7 @@ result/*
 dl/*
 payload_dumper/*
 imjtool
+.venv
 *.pyc
 *.img
 *.zip

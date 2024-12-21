@@ -3,7 +3,7 @@ name: Build props (on schedule)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "37 13 7 * *" # At 13:37 on day-of-month 7. (UTC)
+    - cron: '37 13 7 * *' # At 13:37 on day-of-month 7. (UTC)
 
 jobs:
   prepare_build:
@@ -50,7 +50,7 @@ jobs:
 
       - name: Activate venv
         run: |
-          python3.12 -m venv .venv/
+          python3 -m venv .venv/
           . .venv/bin/activate
           echo PATH=$PATH >> "$GITHUB_ENV"
 

@@ -9,15 +9,15 @@ declare PARTITIONS2EXTRACT=("product" "vendor" "vendor_dlkm" "system" "system_ex
 install_packages "zip" "p7zip" "dos2unix" "aria2"
 
 # Check whethever python was installed, TODO: Improve install_packages function.
-if ! command -v python3.12 >/dev/null 2>&1; then
-	install_packages "python3.12"
+if ! command -v python3 >/dev/null 2>&1; then
+	install_packages "python3"
 fi
 
-# Check if python3.12 pip module installed
-python3.12 -m pip -V &>/dev/null || print_message "Could not find pip module in python3.12, To fix this issue simply aria2c and install https://bootstrap.pypa.io/get-pip.py from python3.12" error
+# Check if python3 pip module installed
+python3 -m pip -V &>/dev/null || print_message "Could not find pip module in python3, To fix this issue simply aria2c and install https://bootstrap.pypa.io/get-pip.py from python3" error
 
 # Check if payload_dumper is available
-payload_dumper -h &>/dev/null || print_message "Could not find payload_dumper executable. Install it using python3.12 -m pip install payload_dumper/" error
+payload_dumper -h &>/dev/null || print_message "Could not find payload_dumper executable. Install it using python3 -m pip install payload_dumper/" error
 
 # Install imjtool if not already installed
 while [ ! -f "./imjtool" ]; do
