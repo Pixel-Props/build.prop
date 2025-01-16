@@ -387,19 +387,18 @@ echo -n "${system_prop::-1}" >"$dir/system.prop"
 ###
 device_name=$model_for_attestation
 device_build_description=$(grep_prop "ro.build.description" "$EXT_PROP_CONTENT")
-device_code_name=$name_for_attestation
+device_codename=$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")
 device_build_security_patch=$(grep_prop "ro.vendor.build.security_patch" "$EXT_PROP_CONTENT")
 device_build_fingerprint=$(grep_prop "ro.product.build.id" "$EXT_PROP_CONTENT")
 device_build_id=$(grep_prop "ro.build.id" "$EXT_PROP_CONTENT")
-device_codename=$name_for_attestation
 base_name="${device_codename}_$device_build_id"
 
-add_prop_as_ini to_module_prop "id" "${device_code_name^}_Props"
-add_prop_as_ini to_module_prop "name" "$device_name (${device_code_name^^}) Props"
+add_prop_as_ini to_module_prop "id" "${device_codename^}_Props"
+add_prop_as_ini to_module_prop "name" "$device_name (${device_codename^^}) Props"
 add_prop_as_ini to_module_prop "version" "$device_build_security_patch"
 add_prop_as_ini to_module_prop "versionCode" "$(echo "$device_build_security_patch" | tr -d - | cut -c3-)"
 add_prop_as_ini to_module_prop "author" "Tesla"
-add_prop_as_ini to_module_prop "description" "Spoof your device props to ${device_code_name^^} [$device_build_fingerprint] ($(date --date="$device_build_security_patch" +%b) $(date --date="$device_build_security_patch" +%Y))"
+add_prop_as_ini to_module_prop "description" "Spoof your device props to ${device_codename^^} [$device_build_fingerprint] ($(date --date="$device_build_security_patch" +%b) $(date --date="$device_build_security_patch" +%Y))"
 add_prop_as_ini to_module_prop "donate" "https://wannabe1337.page.link/4xK6"
 add_prop_as_ini to_module_prop "support" "https://t.me/PixelProps"
 

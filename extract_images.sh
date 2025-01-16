@@ -44,8 +44,8 @@ for file in ./dl/*; do                                      # Iterate through fi
 			fi
 		fi
 
-		# We dont need the archive anymore
-		# rm "$file"
+		# We dont need the downloaded archive image anymore
+		rm "$file"
 
 		# Time the extraction
 		extraction_end=$(date +%s)
@@ -97,7 +97,7 @@ if [ -d "$EAI_BP" ]; then
 				fi
 
 				# We dont need the image anymore
-				# rm "$file"
+				rm "$file"
 
 				# Time the extraction
 				extraction_end=$(date +%s)
