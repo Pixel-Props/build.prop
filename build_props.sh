@@ -369,10 +369,10 @@ to_system_prop "# end common build properties
 ###
 
 # begin common build properties"
-add_prop_as_ini to_system_prop "ro.product.marketname" "$model_for_attestation"
 add_prop_as_ini to_system_prop "ro.boot.hwname" "$device_for_attestation"
+add_prop_as_ini to_system_prop "ro.boot.hwdevice" "$device_for_attestation"
 add_prop_as_ini to_system_prop "ro.product.hardware.sku" "$device_for_attestation"
-add_prop_as_ini to_system_prop "ro.custom.device" "$device_for_attestation"
+add_prop_as_ini to_system_prop "ro.boot.product.hardware.sku" "$device_for_attestation"
 to_system_prop "# end common build properties
 
 ###

@@ -1,18 +1,25 @@
-#!/system/bin/sh
+#!/system/bin/busybox sh
 MODPATH="${0%/*}"
 
 # If MODPATH is empty or is not default modules path, use current path
-if [ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/'; then
+[ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/' &&
   MODPATH="$(dirname "$(readlink -f "$0")")"
-fi
 
-# Function that normalizes a boolean value and returns 1 or 0
-# Usage: boolval "value" || echo $?
+# Function that normalizes a boolean value and returns 0, 1, or a string
+# Usage: boolval "value"
 boolval() {
   case "$(printf "%s" "${1:-}" | tr '[:upper:]' '[:lower:]')" in
   1 | true | on | enabled) return 0 ;;    # Truely
   0 | false | off | disabled) return 1 ;; # Falsely
-  *) return 0 ;;                          # Everything else
+  *) return 1 ;;                          # Everything else - return a string
+  esac
+}
+
+# Enhanced boolval function to only identify booleans
+is_bool() {
+  case "$(printf "%s" "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+  1 | true | on | enabled | 0 | false | off | disabled) return 0 ;; # True (it's a boolean)
+  *) return 1 ;;                                                    # False (it's not a boolean)
   esac
 }
 
@@ -22,20 +29,21 @@ ui_print() { echo "$1"; }
 # Function to abort the script with an error message.
 abort() {
   message="$1"
-  remove_module=$(boolval "${2:-true}")
+  remove_module="${2:-true}"
 
-  ui_print ""
-  ui_print " ! $message"
+  ui_print " [!] $message"
 
   # Remove module on next reboot if requested
-  if [ "$remove_module" -eq 0 ]; then
+  if boolval "$remove_module"; then
     touch "$MODPATH/remove"
     ui_print " ! The module will be removed on next reboot !"
+    ui_print ""
+    sleep 5
+    exit 1
   fi
-  ui_print ""
 
   sleep 5
-  exit 1
+  return 1
 }
 
 # Function to find all .prop files within a specified directory
@@ -56,6 +64,81 @@ grep_prop() {
   if [ -n "$FILES_or_VAR" ]; then
     echo "$FILES_or_VAR" | grep -m1 "^$PROP=" 2>/dev/null | cut -d= -f2- | head -n 1
   fi
+}
+
+set_permissions() { # Handle permissions without errors
+  [ -e "$1" ] && chmod "$2" "$1" &>/dev/null
+}
+
+exist_resetprop() { # Reset a property if it exists
+  getprop "$1" | grep -q '.' && resetprop -v -n "$1" ""
+}
+
+check_resetprop() { # Reset a property if it exists and doesn't match the desired value
+  VALUE="$(resetprop -v "$1")"
+  [ -n "$VALUE" ] && [ "$VALUE" != "$2" ] && resetprop -v -n "$1" "$2"
+}
+
+maybe_resetprop() { # Reset a property if it exists and matches a pattern
+  VALUE="$(resetprop -v "$1")"
+  [ -n "$VALUE" ] && echo "$VALUE" | grep -q "$2" && resetprop -v -n "$1" "$3"
+}
+
+replace_value_resetprop() { # Replace a substring in a property's value
+  VALUE="$(resetprop -v "$1")"
+  [ -z "$VALUE" ] && return
+  VALUE_NEW="$(echo -n "$VALUE" | sed "s|${2}|${3}|g")"
+  [ "$VALUE" == "$VALUE_NEW" ] || resetprop -v -n "$1" "$VALUE_NEW"
+}
+
+# This function aims to delete or obfuscate specific strings within Android system properties,
+# by replacing them with random hexadecimal values which should match with the original string length.
+hexpatch_deleteprop() {
+  # Path to magiskboot (determine it once, at the beginning)
+  magiskboot_path=$(which magiskboot 2>/dev/null || find /data/adb /data/data/me.bmax.apatch/patch/ -name magiskboot -print -quit 2>/dev/null)
+  [ -z "$magiskboot_path" ] && abort "magiskboot not found" false
+
+  # Loop through all arguments passed to the function
+  for search_string in "$@"; do
+    # Hex representation in uppercase
+    search_hex=$(echo -n "$search_string" | xxd -p | tr '[:lower:]' '[:upper:]')
+
+    # Generate a random LOWERCASE alphanumeric string of the required length, using only 0-9 and a-f
+    replacement_string=$(cat /dev/urandom | tr -dc '0-9a-f' | head -c ${#search_string})
+
+    # Convert the replacement string to hex and ensure it's in uppercase
+    replacement_hex=$(echo -n "$replacement_string" | xxd -p | tr '[:lower:]' '[:upper:]')
+
+    # Get property list from search string
+    # Then get a list of property file names using resetprop -Z and pipe it to find
+    getprop | grep "$search_string" | cut -d'[' -f2 | cut -d']' -f1 | while read prop_name; do
+      resetprop -Z "$prop_name" | cut -d' ' -f2 | cut -d':' -f3 | while read -r prop_file_name_base; do
+        # Use find to locate the actual property file (potentially in a subdirectory)
+        # and iterate directly over the found paths
+        find /dev/__properties__/ -name "*$prop_file_name_base*" | while read -r prop_file; do
+          # echo "Patching $prop_file: $search_hex -> $replacement_hex"
+          "$magiskboot_path" hexpatch "$prop_file" "$search_hex" "$replacement_hex" >/dev/null 2>&1
+
+          # Check if the patch was successfully applied
+          if [ $? -eq 0 ]; then
+            echo " ? Successfully patched $prop_file (replaced part of '$search_string' with '$replacement_string')"
+          # else
+          #   echo " ! Failed to patch $prop_file (replacing part of '$search_string')."
+          fi
+        done
+      done
+
+      # Unset the property after patching to ensure the change takes effect
+      resetprop -n --delete "$prop_name"
+      ret=$?
+
+      if [ $ret -eq 0 ]; then
+        echo " ? Successfully unset $prop_name"
+      else
+        echo " ! Failed to unset $prop_name"
+      fi
+    done
+  done
 }
 
 # Function to download a file using curl or wget with retry mechanism
@@ -118,10 +201,11 @@ volume_key_event_setval() {
 
   while :; do
     key=$(getevent -lqc1 | grep -oE "$key_yes|$key_no|$key_cancel")
+    ret=$?
 
     # Check if getevent succeeded
-    if [ -z "$key" ] && [ $? -ne 0 ]; then
-      ui_print "Warning: getevent command failed. Retrying..." >&2
+    if [ -z "$key" ] && [ $ret -ne 0 ]; then
+      ui_print " ! Warning: getevent command failed. Retrying..." >&2
       sleep 1
       continue
     fi
@@ -142,7 +226,7 @@ volume_key_event_setval() {
       return 0
       ;;
     "$key_cancel")
-      abort "Cancel key detected! Canceling…" false
+      abort "Cancel key detected! Canceling…" true
       ;;
     esac
   done
@@ -211,10 +295,11 @@ volume_key_event_setoption() {
 
   while :; do
     key=$(getevent -lqc1 | grep -oE "$key_yes|$key_no|$key_cancel")
+    ret=$?
 
     # Check if getevent succeeded
-    if [ -z "$key" ] && [ $? -ne 0 ]; then
-      ui_print "Warning: getevent command failed. Retrying..." >&2
+    if [ -z "$key" ] && [ $ret -ne 0 ]; then
+      ui_print " ! Warning: getevent command failed. Retrying..." >&2
       sleep 1
       continue
     fi
@@ -244,7 +329,7 @@ volume_key_event_setoption() {
       ui_print " > $current_option"
       ;;
     "$key_cancel")
-      abort "Cancel key detected, Cancelling…" false
+      abort "Cancel key detected, Cancelling…" true
       ;;
     esac
 

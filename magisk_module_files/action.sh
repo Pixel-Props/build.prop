@@ -2,9 +2,8 @@
 MODPATH="${0%/*}"
 
 # If MODPATH is empty or is not default modules path, use current path
-if [ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/'; then
+[ -z "$MODPATH" ] || ! echo "$MODPATH" | grep -q '/data/adb/modules/' &&
   MODPATH="$(dirname "$(readlink -f "$0")")"
-fi
 
 # Using util_functions.sh
 [ -f "$MODPATH"/util_functions.sh ] && . "$MODPATH"/util_functions.sh || abort "! util_functions.sh not found!"
@@ -49,13 +48,11 @@ PlayIntegrityFix() {
   PIF_DIRS="$PIF_MODULE_DIR/pif.json"
 
   # Check if PIF_MODULE_DIR is a directory and module.prop exists and is not empty
-  if [[ ! -d "$PIF_MODULE_DIR" || ! -s "$PIF_MODULE_DIR/module.prop" ]]; then
+  # Then check if it's an Official version of PlayIntegrityFix
+  if [[ -z "$PIF_MODULE_DIR" ]] || [[ ! -d "$PIF_MODULE_DIR" ]] || [[ ! -s "$PIF_MODULE_DIR/module.prop" ]]; then
     abort "PlayIntegrityFix module is missing or is not accessible, Skipping !" false
-  fi
-
-  # Check whether we are about to build pif.json for PIF Fork or not
-  if grep -q "Fork" "$PIF_MODULE_DIR/module.prop"; then
-    ui_print " ! Detected a Fork version of PlayIntegrityFix, Please install the official version !"
+  elif [[ -n "$PIF_MODULE_DIR" ]] && grep -q "Fork" "$PIF_MODULE_DIR/module.prop"; then
+    abort "Detected a Fork version of PlayIntegrityFix, Please install the official version" false
   else
     ui_print " - Detected an official version of PlayIntegrityFix, Proceeding Building PIF.json for official version…"
 
@@ -179,13 +176,20 @@ PlayIntegrityFix() {
 
     # Compares the newly generated PIF configuration file with existing ones and updates them if necessary.
     for PIF_DIR in $PIF_DIRS; do
-      if cmp "$CWD_PIF" "$PIF_DIR" >/dev/null; then
-        ui_print "  - No changes detected in \"$PIF_DIR\"."
-      else
-        mv "$PIF_DIR" "${PIF_DIR}.old"
+      # Compares the newly generated target configuration file with existing ones and updates them if necessary.
+      if [ ! -s "$CWD_PIF" ]; then
+        ui_print "  ! Built PIF file does not exist or is empty."
+      elif [ ! -s "$PIF_DIR" ]; then
+        # Target file does not exist or is empty, so copy the new one
+        cp "$CWD_PIF" "$PIF_DIR"
+        ui_print "  ++ Config file has been created at \"$PIF_DIR\"."
+      elif ! cmp -s "$CWD_PIF" "$PIF_DIR"; then
+        # Target file exists and is different, back up the old one and update
+        mv "$PIF_DIR" "${PIF_DIR}.old" 2>/dev/null # 2>/dev/null suppresses the error if it does not exist
         cp "$CWD_PIF" "$PIF_DIR"
         ui_print "  ++ Config file has been updated and saved to \"$PIF_DIR\"."
-        update_count=$((update_count + 1))
+      else
+        ui_print "  - No changes detected in \"$PIF_DIR\"."
       fi
     done
 
@@ -223,29 +227,43 @@ TrickyStoreTarget() {
     # Use pm list packages to get a list of installed packages
     PACKAGES=$(pm list packages | sed 's/package://g')
 
+    # List of packages to add "!" to
+    SPECIAL_PACKAGES="com.google.android.gms com.google.android.gsf com.android.vending"
+
     # Check if your TEE is broken
     if grep -qE "^teeBroken=(true|1)$" /data/adb/tricky_store/tee_status; then
       ui_print "  ! Hardware Attestation support not available (teeBroken=true)"
       ui_print "  ! Fallback to Broken TEE Support mode (!)"
-      # If teeBroken is true or 1, add "!" before each package name
-      PACKAGES=$(echo "$PACKAGES" | sed 's/^/!/g')
+      # If teeBroken is true or 1, add "!" after each package name
+      PACKAGES=$(echo "$PACKAGES" | sed 's/$/!/g')
+    else # Add "!" only to specific packages if teeBroken is false
+      for pkg in $SPECIAL_PACKAGES; do
+        PACKAGES=$(echo "$PACKAGES" | sed "s/^${pkg}$/${pkg}!/g")
+      done
     fi
 
     # Save packages to MODPATH/target.txt
     echo "$PACKAGES" >"$CWD_TARGET"
 
     # Compares the newly generated target configuration file with existing ones and updates them if necessary.
-    if cmp "$CWD_TARGET" "$TARGET_DIR" >/dev/null; then
-      ui_print "  - No changes detected in \"$TARGET_DIR\"."
-    else # Backup old target file and update it
-      mv "$TARGET_DIR" "${TARGET_DIR}.old"
+    if [ ! -s "$CWD_TARGET" ]; then
+      ui_print "  ! Built target file does not exist or is empty."
+    elif [ ! -s "$TARGET_DIR" ]; then
+      # Target file does not exist or is empty, so copy the new one
+      cp "$CWD_TARGET" "$TARGET_DIR"
+      ui_print "  ++ Target file has been created at \"$TARGET_DIR\"."
+    elif ! cmp -s "$CWD_TARGET" "$TARGET_DIR"; then
+      # Target file exists and is different, back up the old one and update
+      mv "$TARGET_DIR" "${TARGET_DIR}.old" 2>/dev/null # 2>/dev/null suppresses the error if it does not exist
       cp "$CWD_TARGET" "$TARGET_DIR"
       ui_print "  ++ Target file has been updated and saved to \"$TARGET_DIR\"."
+    else
+      ui_print "  - No changes detected in \"$TARGET_DIR\"."
     fi
   fi
 }
 
-ui_print "- Building configuration file for PlayIntegrityFix / TrickyStore"
+ui_print "- Building configuration file for PlayIntegrityFix & TrickyStore"
 
 # Calling functions
 PlayIntegrityFix

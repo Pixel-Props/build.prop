@@ -7,3 +7,5 @@
 # pixelprops.sensitive.security_patch=true
 # pixelprops.sensitive.soc=true
 # pixelprops.sensitive.sdk=true
+pixelprops.sensitive.props=true
+pixelprops.sensitive.pihooks=true
