@@ -31,7 +31,7 @@ else
   fi
 
   # Cleanup and replacements (avoiding duplicates with service.sh)
-  for prop in $(getprop | grep -E "aosp_|test-keys"); do
+  for prop in $(getprop | grep -E "aosp_|test-keys" | cut -d ":" -f 1 | tr -d '[]'); do
     replace_value_resetprop "$prop" "aosp_" ""
     replace_value_resetprop "$prop" "test-keys" "release-keys"
   done
@@ -43,7 +43,7 @@ else
     check_resetprop "ro.${prefix}.build.type" user
 
     # Replace values in all relevant properties
-    for prop in ro.${prefix}.build.{description,fingerprint} ro.product.${prefix}.name; do
+    for prop in ro.${prefix}.build.description ro.${prefix}.build.fingerprint ro.product.${prefix}.name; do
       replace_value_resetprop "$prop" "aosp_" ""
     done
   done
