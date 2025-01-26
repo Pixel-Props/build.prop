@@ -32,7 +32,7 @@ mkdir -p "result/$base_name/system/product/etc/"
 # Copy relevant files
 cp "$dir"/{module,system}.prop "result/$base_name/"
 cp -r "$dir"/system/ "result/$base_name/"
-cp -r ./magisk_module_files/* "result/$base_name/"
+cp -r ./module_files/* "result/$base_name/"
 
 # Navigate to the module directory
 cd "result/$base_name" || exit 1

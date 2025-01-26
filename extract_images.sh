@@ -164,7 +164,7 @@ for dir in "$EI"/*; do  # List directory ./*
 
 		# Build Magisk module
 		print_message "Building module…" info
-		./build_magisk_module.sh "$dir"
+		./build_module.sh "$dir"
 
 		# Time the extraction
 		extraction_end=$(date +%s)
