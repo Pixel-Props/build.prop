@@ -9,12 +9,7 @@ Effortlessly extract and manage system properties from Pixel OTA updates with th
 
 - **Unix-like environment**: Linux or macOS with Bash.
 - **Core utilities**: Ensure you have the following installed:
-  - `dos2unix`
-  - `aria2`
-  - `zip`
-  - `unzip`
-  - `p7zip`
-  - `curl`
+  - `dos2unix`, `aria2`, `zip`, `unzip`, `p7zip`, `curl`
 - **Python ^3.8**:
 
     ```bash
@@ -46,11 +41,13 @@ Effortlessly extract and manage system properties from Pixel OTA updates with th
 ## Usage
 
 1. **Obtain Pixel Images**: Download the desired factory or OTA images from [Google Android Images](https://developers.google.com/android/images) or the [Beta OTA Pages](https://developer.android.com/about/versions/15/download-ota).
-2. **Effortless Extraction**:
-    - Place the downloaded image files within the project's workspace.
-    - Execute `./extract_images.sh` to automatically extract build properties.
-3. **Stay Up-to-Date**:
+2. **Stay Up-to-Date**:
     - Fetch the latest OTA images with `./download_latest_ota_build.sh <device_name1> <device_name2> ...` (e.g., `husky`, `felix_beta`, `cheetah`, `akita_beta15`).
+3. **Effortless Extraction**:
+    - Place the downloaded image files within the project's workspace.
+    - Execute `./extract_images.sh` to automatically extract images and their build properties into `result/Codename_ID ...`.
+4. **Effortless Module Integration**:
+    - Execute `./build_module.sh` to automatically combine and build your module from the `result/` dir.
 
 ## ✨ Key Features
 
@@ -59,7 +56,7 @@ Effortlessly extract and manage system properties from Pixel OTA updates with th
 - **Build Prop Generation**: Automatically generates `build.prop` files from extracted system images.
 - **Magisk Module Features**:
   - **`service.sh`**:
-    - **Safe Mode**: Prevents accidental modification of critical system settings by comparing module properties with existing system values.
+    - **Safe Mode**: Prevents accidental modification of critical system settings by comparing module properties with existing system values.
     - **Integrated [Sensitive Props](https://github.com/Pixel-Props/sensitive-props) Mod Features**: Incorporates all [Sensitive Props](https://github.com/Pixel-Props/sensitive-props) Mod features and disables them if the standalone module is also present, avoiding conflicts.
     - **PIHooks (PropImitationHooks)**: A powerful internal prop spoofing system that dynamically sets essential properties based on the properties of the **module defined in `MOD_PROP_CONTENT` that is being spoofed**.
       - **Automatic PIHooks Disable**: PIHooks intelligently disables itself when it detects a properly configured Play Integrity Fix module.
