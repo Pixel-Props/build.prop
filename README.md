@@ -59,7 +59,11 @@ Effortlessly extract and manage system properties from Pixel OTA updates with th
 - **Build Prop Generation**: Automatically generates `build.prop` files from extracted system images.
 - **Magisk Module Features**:
   - **`service.sh`**:
-    - **Safe Mode**: Prevents accidental modification of critical system settings by comparing module properties with existing system values.
+    - **Safe Mode**: Prevents accidental modification of critical system settings by comparing module properties with existing system values.
+    - **Integrated [Sensitive Props](https://github.com/Pixel-Props/sensitive-props) Mod Features**: Incorporates all [Sensitive Props](https://github.com/Pixel-Props/sensitive-props) Mod features and disables them if the standalone module is also present, avoiding conflicts.
+    - **PIHooks (PropImitationHooks)**: A powerful internal prop spoofing system that dynamically sets essential properties based on the properties of the **module defined in `MOD_PROP_CONTENT` that is being spoofed**.
+      - **Automatic PIHooks Disable**: PIHooks intelligently disables itself when it detects a properly configured Play Integrity Fix module.
+      - **Selective `build.prop` Integration**: PIHooks utilizes values from your device's actual `build.prop` only when setting specific properties, like the initial SDK version, when those values are considered safe and necessary.
   - **`action.sh`**:
     - **PlayIntegrityFix**: Automatically builds the `PIF.json` configuration when using a Beta OTA. Provides options to download pre-built configurations or crawl Google's OTA pages to generate a list of devices for building the configuration.
     - **TrickyStore**: Automatically builds the target app package list and handles broken TEE status.
