@@ -47,11 +47,11 @@ PlayIntegrityFix() {
   PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
   PIF_DIRS="$PIF_MODULE_DIR/pif.json"
 
-  # Check if PIF_MODULE_DIR is a directory and module.prop exists and is not empty
+  # Check if PIF_MODULE_DIR is valid and module.prop exists and is not empty
   # Then check if it's an Official version of PlayIntegrityFix
-  if [[ -z "$PIF_MODULE_DIR" ]] || [[ ! -d "$PIF_MODULE_DIR" ]] || [[ ! -s "$PIF_MODULE_DIR/module.prop" ]]; then
+  if [[ -z "$PIF_MODULE_DIR" ]] || [[ ! -s "$PIF_MODULE_DIR/module.prop" ]]; then
     abort "PlayIntegrityFix module is missing or is not accessible, Skipping !" false
-  elif [[ -n "$PIF_MODULE_DIR" ]] && grep -q "Fork" "$PIF_MODULE_DIR/module.prop"; then
+  elif grep -q "Fork" "$PIF_MODULE_DIR/module.prop"; then
     abort "Detected a Fork version of PlayIntegrityFix, Please install the official version" false
   else
     ui_print " - Detected an official version of PlayIntegrityFix, Proceeding Building PIF.json for official version…"
@@ -67,17 +67,15 @@ PlayIntegrityFix() {
     SECURITY_PATCH=$(grep_prop "ro.vendor.build.security_patch" "$MODPROP_CONTENT")
     DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
     [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
-  fi
 
-  # Set location of pif.json to of the current working directory
-  CWD_PIF="$MODPATH"/pif.json
-  shift
+    # Set location of pif.json to of the current working directory
+    CWD_PIF="$MODPATH"/pif.json
+    shift
 
-  # Delete old CWD pif file
-  [ -f "$CWD_PIF" ] && rm -f "$CWD_PIF"
+    # Delete old CWD pif file
+    [ -f "$CWD_PIF" ] && rm -f "$CWD_PIF"
 
-  update_count=0
-  if [ -d "$PIF_MODULE_DIR" ]; then
+    update_count=0
     case "$PRODUCT" in
     *beta*)
       ui_print "  - Building PlayIntegrityFix PIF.json from current (BETA) module properties…"
@@ -98,11 +96,6 @@ PlayIntegrityFix() {
       if boolval "$ACTION_DOWNLOAD_PIF_GITHUB"; then
         download_file "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json" "$CWD_PIF"
       else
-        # This crawling mechanism was originally inspired by the CIT Project.
-        # This implementation addresses limitations in the original by providing:
-        #  - A comprehensive device listing with user selection.
-        #  - Enhanced crawling capabilities focused on (Beta) releases.
-
         ui_print "  - Crawling the latest Google Pixel Beta OTA Release…"
 
         # Download Generic System Image (GSI) HTML
@@ -180,10 +173,14 @@ PlayIntegrityFix() {
       if [ ! -s "$CWD_PIF" ]; then
         ui_print "  ! Built PIF file does not exist or is empty."
       elif [ ! -s "$PIF_DIR" ]; then
+        update_count=$((update_count + 1))
+
         # Target file does not exist or is empty, so copy the new one
         cp "$CWD_PIF" "$PIF_DIR"
         ui_print "  ++ Config file has been created at \"$PIF_DIR\"."
       elif ! cmp -s "$CWD_PIF" "$PIF_DIR"; then
+        update_count=$((update_count + 1))
+
         # Target file exists and is different, back up the old one and update
         mv "$PIF_DIR" "${PIF_DIR}.old" 2>/dev/null # 2>/dev/null suppresses the error if it does not exist
         cp "$CWD_PIF" "$PIF_DIR"
@@ -203,8 +200,6 @@ PlayIntegrityFix() {
       ui_print "  ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$MODEL\"."
       ui_print "  ? More info: https://t.me/PixelProps/157"
     fi
-  else
-    ui_print " - PlayIntegrityFix not found in your modules."
   fi
 }
 

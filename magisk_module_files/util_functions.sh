@@ -18,8 +18,8 @@ boolval() {
 # Enhanced boolval function to only identify booleans
 is_bool() {
   case "$(printf "%s" "${1:-}" | tr '[:upper:]' '[:lower:]')" in
-  1 | true | on | enabled | 0 | false | off | disabled) return 0 ;; # True (it's a boolean)
-  *) return 1 ;;                                                    # False (it's not a boolean)
+  1 | true | on | enabled | 0 | false | off | disabled) return 0 ;; # True (is a boolean)
+  *) return 1 ;;                                                    # False (not a boolean)
   esac
 }
 
@@ -70,25 +70,37 @@ set_permissions() { # Handle permissions without errors
   [ -e "$1" ] && chmod "$2" "$1" &>/dev/null
 }
 
+# Function to construct arguments for resetprop based on prop name
+_build_resetprop_args() {
+  prop_name="$1"
+  shift
+
+  case "$prop_name" in
+  persist.*) set -- -p -v "$prop_name" ;; # Use persist mode
+  *) set -- -n -v "$prop_name" ;;         # Use normal mode
+  esac
+  echo "$@"
+}
+
 exist_resetprop() { # Reset a property if it exists
-  getprop "$1" | grep -q '.' && resetprop -v -n "$1" ""
+  getprop "$1" | grep -q '.' && resetprop $(_build_resetprop_args "$1") ""
 }
 
 check_resetprop() { # Reset a property if it exists and doesn't match the desired value
   VALUE="$(resetprop -v "$1")"
-  [ -n "$VALUE" ] && [ "$VALUE" != "$2" ] && resetprop -v -n "$1" "$2"
+  [ -n "$VALUE" ] && [ "$VALUE" != "$2" ] && resetprop $(_build_resetprop_args "$1") "$2"
 }
 
 maybe_resetprop() { # Reset a property if it exists and matches a pattern
   VALUE="$(resetprop -v "$1")"
-  [ -n "$VALUE" ] && echo "$VALUE" | grep -q "$2" && resetprop -v -n "$1" "$3"
+  [ -n "$VALUE" ] && echo "$VALUE" | grep -q "$2" && resetprop $(_build_resetprop_args "$1") "$3"
 }
 
 replace_value_resetprop() { # Replace a substring in a property's value
   VALUE="$(resetprop -v "$1")"
   [ -z "$VALUE" ] && return
   VALUE_NEW="$(echo -n "$VALUE" | sed "s|${2}|${3}|g")"
-  [ "$VALUE" == "$VALUE_NEW" ] || resetprop -v -n "$1" "$VALUE_NEW"
+  [ "$VALUE" == "$VALUE_NEW" ] || resetprop $(_build_resetprop_args "$1") "$VALUE_NEW"
 }
 
 # This function aims to delete or obfuscate specific strings within Android system properties,
@@ -205,7 +217,7 @@ volume_key_event_setval() {
 
     # Check if getevent succeeded
     if [ -z "$key" ] && [ $ret -ne 0 ]; then
-      ui_print " ! Warning: getevent command failed. Retrying..." >&2
+      ui_print " ! Warning: getevent command failed. Retrying…" >&2
       sleep 1
       continue
     fi
@@ -299,7 +311,7 @@ volume_key_event_setoption() {
 
     # Check if getevent succeeded
     if [ -z "$key" ] && [ $ret -ne 0 ]; then
-      ui_print " ! Warning: getevent command failed. Retrying..." >&2
+      ui_print " ! Warning: getevent command failed. Retrying…" >&2
       sleep 1
       continue
     fi

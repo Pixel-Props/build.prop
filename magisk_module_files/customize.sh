@@ -49,8 +49,8 @@ checksum_sha256() {
 
 # Define the path of root manager applet bin directories using find and set it to $PATH then export it
 if ! command -v busybox >/dev/null 2>&1; then
-    TOYS_PATH=$(find "/data/adb" -maxdepth 3 \( -name busybox -o -name ksu_sus \) -exec dirname {} \; | sort -u | tr '\n' ':')
-    export PATH="$(echo -n "$PATH:$TOYS_PATH" | tr ':' '\n' | uniq | paste -sd: -)"
+    TOYS_PATH=$(find "/data/adb" -maxdepth 3 \( -name busybox -o -name ksu_susfs \) -exec dirname {} \; | sort -u | tr '\n' ':')
+    export PATH="${PATH:+${PATH}:}${TOYS_PATH%:}"
 fi
 
 # Define the props path

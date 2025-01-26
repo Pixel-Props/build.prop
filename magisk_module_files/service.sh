@@ -165,50 +165,6 @@ sys_sensitive_checks() {
 
     ### Props ###
 
-    if boolval "$SAFE_PIHOOKS"; then
-      # Get initial Pihooks property names.
-      pihook_props=$(getprop | grep 'pihooks' | cut -d ':' -f 1 | tr -d '[]')
-
-      # Check if Pihooks properties exist.
-      if [ -n "$pihook_props" ]; then
-        ui_print " - Disabling pihooks (internal spoofing)..."
-
-        # Continuously monitor and modify Pihooks properties in the background.
-        while true; do
-          for pihook in $pihook_props; do
-            # Get the original value of the property.
-            original_value=$(getprop "$pihook")
-
-            # Check if it's a boolean value using is_bool.
-            if is_bool "$original_value"; then # It's a boolean, set to 0 to disable.
-              disabled_value="0"
-              ui_print "  ? Property $pihook set to 0 (disabled)"
-            else # It's a string, set to empty to disable.
-              disabled_value=""
-              ui_print "  ? Property $pihook set to empty string (disabled)"
-            fi
-
-            # Use check_resetprop to modify the property if it's not already disabled.
-            check_resetprop "$pihook" "$disabled_value"
-          done
-
-          # Wait for 10 seconds before the next check.
-          sleep 10
-        done &
-      else
-        echo " - No Pihooks properties found."
-      fi
-    fi
-
-    # Fix display properties to remove custom ROM references
-    replace_value_resetprop ro.build.flavor "lineage_" ""
-    replace_value_resetprop ro.build.flavor "userdebug" "user"
-    replace_value_resetprop ro.build.display.id "lineage_" ""
-    replace_value_resetprop ro.build.display.id "userdebug" "user"
-    replace_value_resetprop ro.build.display.id "dev-keys" "release-keys"
-    replace_value_resetprop vendor.camera.aux.packagelist "lineageos." ""
-    replace_value_resetprop ro.build.version.incremental "eng." ""
-
     # Periodically hexpatch delete custom ROM props
     while true; do
       hexpatch_deleteprop "LSPosed" \
@@ -223,6 +179,15 @@ sys_sensitive_checks() {
       # Wait for 1 hour before the next check.
       sleep 3600
     done &
+
+    # Fix display properties to remove custom ROM references
+    replace_value_resetprop ro.build.flavor "lineage_" ""
+    replace_value_resetprop ro.build.flavor "userdebug" "user"
+    replace_value_resetprop ro.build.display.id "lineage_" ""
+    replace_value_resetprop ro.build.display.id "userdebug" "user"
+    replace_value_resetprop ro.build.display.id "dev-keys" "release-keys"
+    replace_value_resetprop vendor.camera.aux.packagelist "lineageos." ""
+    replace_value_resetprop ro.build.version.incremental "eng." ""
 
     # Realme fingerprint fix
     check_resetprop ro.boot.flash.locked 1
@@ -292,6 +257,18 @@ sys_sensitive_checks() {
     # Native Bridge (could break some features, appdome?)
     # deleteprop ro.dalvik.vm.native.bridge
 
+    ### System Settings ###
+
+    # Fix Restrictions on non-SDK interface and disable developer options
+    for global_setting in hidden_api_policy hidden_api_policy_pre_p_apps hidden_api_policy_p_apps; do # adb_enabled development_settings_enabled tether_dun_required
+      settings delete global "$global_setting" >/dev/null 2>&1
+    done
+
+    # Disable untrusted touches
+    for namespace in global system secure; do
+      settings put "$namespace" "block_untrusted_touches" 0 >/dev/null 2>&1
+    done
+
     ### File Permissions ###
 
     # Hiding SELinux | Use toybox to protect *stat* access time reading
@@ -310,17 +287,120 @@ sys_sensitive_checks() {
     set_permissions /proc/net/unix 440
     set_permissions /system/addon.d 750
     set_permissions /sdcard/TWRP 750
+  fi
+}
 
-    ### System Settings ###
+sys_sensitive_pihooks_checks() {
+  # Get initial Pihooks property names.
+  pihook_props=$(getprop | grep 'pihooks' | cut -d ':' -f 1 | tr -d '[]')
+  PIF_MODULE_DIR="/data/adb/modules/playintegrityfix"
+  use_pihooks=1
 
-    # Fix Restrictions on non-SDK interface and disable developer options
-    for global_setting in hidden_api_policy hidden_api_policy_pre_p_apps hidden_api_policy_p_apps; do # adb_enabled development_settings_enabled tether_dun_required
-      settings delete global "$global_setting" >/dev/null 2>&1
+  # Check if Pihooks poperties exist and PIF is not used.
+  if [[ -d "$PIF_MODULE_DIR" ]] && [[ -s "$PIF_MODULE_DIR/module.prop" ]]; then
+    use_pihooks=0
+    ui_print "- PlayIntegrityFix module detected, Disabling PIHOOKS spoofing…"
+  fi
+
+  # Check if Pihooks properties exist.
+  if [ -z "$pihook_props" ]; then
+    ui_print "- No pihooks properties found (internal spoofing)"
+    ui_print " ! Use PlayIntegrityFix instead ?"
+  else
+    ui_print "- Running Sensitive PIHOOKS checks (internal spoofing)…"
+
+    # Build properties
+    BRAND=$(grep_prop "ro.product.brand" "$MODPROP_CONTENT")
+    MODEL=$(grep_prop "ro.product.model" "$MODPROP_CONTENT")
+    DEVICE=$(grep_prop "ro.product.device" "$MODPROP_CONTENT")
+    MANUFACTURER=$(grep_prop "ro.product.manufacturer" "$MODPROP_CONTENT")
+    PRODUCT=$(grep_prop "ro.product.product.name" "$MODPROP_CONTENT")
+    FINGERPRINT=$(grep_prop "ro.product.build.fingerprint" "$MODPROP_CONTENT")
+    SECURITY_PATCH=$(grep_prop "ro.vendor.build.security_patch" "$MODPROP_CONTENT")
+    DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
+    [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
+    BUILD_ID=$(grep_prop "ro.product.build.id" "$MODPROP_CONTENT")
+    BUILD_TAGS=$(grep_prop "ro.product.build.tags" "$MODPROP_CONTENT")
+    BUILD_TYPE=$(grep_prop "ro.product.build.type" "$MODPROP_CONTENT")
+
+    update_ph_count=0
+    # Essential properties for integrity (PIF-less-PIF mode)
+    essential_props="model manufacturer product fingerprint security_patch initial_sdk"
+    # Calculate the total number of essential props dynamically
+    total_essential_props=$(echo "$essential_props" | wc -w)
+
+    # Set string values responsible for spoofing pihooks.
+    for prop in $pihook_props; do
+      prop_value=$(getprop "$prop")
+      prop_lower=$(echo "$prop" | tr '[:upper:]' '[:lower:]')
+      final_value="" # Disable by default
+
+      # Check if it's a boolean value using is_bool.
+      if ! is_bool "$prop_value"; then
+        # Check and apply the proper values
+        case "$prop_lower" in
+        *"brand"*) final_value="$BRAND" ;;
+        *"model"*) final_value="$MODEL" ;;
+        *"device"*) final_value="$DEVICE" ;;
+        *"manufacturer"*) final_value="$MANUFACTURER" ;;
+        *"product"*) final_value="$PRODUCT" ;;
+        *"fingerprint"*) final_value="$FINGERPRINT" ;;
+        *"security_patch"*) final_value="$SECURITY_PATCH" ;;
+        *"first_api"* | *"initial_sdk"*) final_value="$DEVICE_INITIAL_SDK_INT" ;;
+        *"id"*) final_value="$BUILD_ID" ;;
+        *"tags"*) final_value="$BUILD_TAGS" ;;
+        *"type"*) final_value="$BUILD_TYPE" ;;
+        esac
+
+        # Check if this is one of the essential properties
+        for essential_prop in $essential_props; do
+          if [[ "$prop_lower" == *"$essential_prop"* && -n "$final_value" ]]; then
+            essential_props_set=$((essential_props_set + 1))
+            break # No need to check other essential props for this pihook prop
+          fi
+        done
+
+        # Reset the property
+        check_resetprop "$prop" "$final_value"
+        ui_print " ? Property $prop set to \"$final_value\""
+      fi
+
+      # If the value is not empty add to update_ph_count
+      [ -n "$final_value" ] && update_ph_count=$((update_ph_count + 1))
     done
 
-    # Disable untrusted touches
-    for namespace in global system secure; do
-      settings put "$namespace" "block_untrusted_touches" 0 >/dev/null 2>&1
+    # Warn the user if essential properties for PIF-less spoofing are not set
+    if [ "$essential_props_set" -lt "$total_essential_props" ]; then
+      ui_print "***************************************"
+      ui_print " ! Warning: Not all essential properties for PIF-less spoofing are set. This means that relying solely on PIHooks for spoofing might not be approriate. We recommend using PlayIntegrityFix instead, as it provides more comprehensive spoofing capabilities. As a result, relevant PIHooks features will be disabled."
+      ui_print "***************************************"
+    fi
+
+    # Set boolean values responsible for enabling or disabling the feature.
+    for prop in $pihook_props; do
+      prop_value=$(getprop "$prop")
+      prop_lower=$(echo "$prop" | tr '[:upper:]' '[:lower:]')
+      final_value="0" # Disable by default
+
+      # Check if it's a boolean value using is_bool.
+      if is_bool "$prop_value"; then
+        # Use essential_props_set to determine if spoofing is likely successful
+        boolval "$use_pihooks" && [ "$essential_props_set" -ge "$total_essential_props" ] && final_value="1"
+
+        # If the prop contains "disable" revert the disabled state, from false to true.
+        # Don't revert the check if prop name contains checks irrelevent to integrity.
+        if [[ "$prop_lower" == *"disable"* ]] &&
+          [[ ! "$prop_lower" == *"game"* ]] &&
+          [[ ! "$prop_lower" == *"photo"* ]] &&
+          [[ ! "$prop_lower" == *"netflix"* ]]; then
+          final_value="1" # Disable by default
+          boolval "$use_pihooks" && [ "$essential_props_set" -ge "$total_essential_props" ] && final_value="0"
+        fi
+
+        # Reset the property
+        check_resetprop "$prop" "$final_value"
+        ui_print " ? Property $prop set to \"$final_value\" ($(boolval "$final_value" && echo enabled || echo disabled))"
+      fi
     done
   fi
 }
@@ -329,3 +409,4 @@ sys_sensitive_checks() {
 init_config
 mod_sensitive_checks
 boolval "$SAFE_PROPS" && sys_sensitive_checks
+boolval "$SAFE_PIHOOKS" && sys_sensitive_pihooks_checks
