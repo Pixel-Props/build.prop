@@ -133,6 +133,8 @@ EOF
         check_and_update_prop "ro.soc.manufacturer" "ro.soc.manufacturer" "SOC_MANUFACTURER" "$comparison"
         ;;
       sdk)
+        check_and_update_prop "ro.product.first_api_level" "ro.product.first_api_level" "FIRST_API_LEVEL" "$comparison"
+
         local prefixes="build product vendor vendor_dlkm system system_ext system_dlkm"
         local versions="sdk incremental release release_or_codename"
 
@@ -329,7 +331,7 @@ sys_sensitive_pihooks_checks() {
     # Calculate the total number of essential props dynamically
     total_essential_props=$(echo "$essential_props" | wc -w)
 
-    # Set string values responsible for spoofing pihooks.
+    # Set string values responsible for spoofing PropImitationHooks.
     for prop in $pihook_props; do
       prop_value=$(getprop "$prop")
       prop_lower=$(echo "$prop" | tr '[:upper:]' '[:lower:]')

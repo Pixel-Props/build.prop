@@ -96,7 +96,7 @@ PlayIntegrityFix() {
       if boolval "$ACTION_DOWNLOAD_PIF_GITHUB"; then
         download_file "https://raw.githubusercontent.com/chiteroman/PlayIntegrityFix/main/module/pif.json" "$CWD_PIF"
       else
-        ui_print "  - Crawling the latest Google Pixel Beta OTA Release…"
+        ui_print " - Crawling the latest Google Pixel Beta OTA Releases…"
 
         # Download Generic System Image (GSI) HTML
         download_file https://developer.android.com/topic/generic-system-image/releases DL_GSI_HTML
@@ -108,13 +108,44 @@ PlayIntegrityFix() {
         RELEASE_VERSION="$(awk '/\(Beta\)/ {flag=1} /versions/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*\/versions\/\([0-9]*\).*/\1/p' | head -n1)"
 
         # Extract the build ID from the text closest to the "(Beta)" string
-        ID="$(awk '/\(Beta\)/ {flag=1} /Build:/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*Build: \([A-Z0-9.]*\).*/\1/p' | head -n1)"
+        RELEASE_IDS="$(awk '/\(Beta\)/ {flag=1} /Build:/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*Build: \([A-Z0-9.]*\).*/\1/p')"
 
-        # Extract the incremental value (based on the ID)
-        INCREMENTAL="$(grep -o "$ID-[0-9]*-" DL_GSI_HTML | sed "s/$ID-//g" | sed 's/-//g' | head -n1)"
+        # Print the header with the release date
+        ui_print "  - Latest Available Beta Releases ($RELEASE_DATE)"
+
+        # Initialize an empty string for the release list
+        RELEASE_LIST=""
+
+        # Loop through each unique ID
+        for ID in $RELEASE_IDS; do
+          # Find the corresponding release version for the current ID
+          RELEASE_VERSION=$(awk -v id="$ID" '$0 ~ id {flag=1} /Android [0-9]+/ && flag {print; flag=0}' DL_GSI_HTML | sed -n 's/.*Android \([0-9]*\).*/\1/p' | head -n1)
+
+          # Extract the incremental value (based on the ID)
+          INCREMENTAL=$(grep -o "$ID-[0-9]*-" DL_GSI_HTML | sed "s/$ID-//g" | sed 's/-//g' | head -n1)
+
+          # Build the release info for user selection
+          RELEASE_INFO="A$RELEASE_VERSION-$ID-$INCREMENTAL"
+
+          # Append the release info to the string
+          [ -z "$RELEASE_LIST" ] &&
+            RELEASE_LIST="$RELEASE_INFO" ||
+            RELEASE_LIST="$RELEASE_LIST $RELEASE_INFO"
+
+          # Print the output for the current ID
+          ui_print "   - Android Version: $RELEASE_VERSION ($ID) [$INCREMENTAL]"
+        done
+
+        # Use volume key events to select a release from list
+        volume_key_event_setoption "RELEASE" "$RELEASE_LIST" "SELECTED_RELEASE"
+
+        # Set the selected release id, version, incremental
+        SELECTED_RELEASE_ID=$(echo "$SELECTED_RELEASE" | cut -d- -f2)
+        SELECTED_RELEASE_VERSION=$(echo "$SELECTED_RELEASE" | cut -d- -f1 | tr -d 'A')
+        SELECTED_RELEASE_INCREMENTAL=$(echo "$SELECTED_RELEASE" | cut -d- -f3)
 
         # Download the OTA Image Download page
-        download_file "https://developer.android.com/about/versions/$RELEASE_VERSION/download-ota" DL_OTA_HTML
+        download_file "https://developer.android.com/about/versions/$SELECTED_RELEASE_VERSION/download-ota" DL_OTA_HTML
 
         # Build lists of supported models and codenames from the OTA Image Download page
         DEVICE_LIST="$(grep -A1 'tr id=' DL_OTA_HTML | awk -F '[<>"]' '
@@ -147,16 +178,17 @@ PlayIntegrityFix() {
         # Build security patch from OTA release date
         SECURITY_PATCH_DATE="${RELEASE_DATE%-*}"-05
 
+        # An attempt at fixing Baklava
+        SELECTED_RELEASE_VERSION_OR_CODENAME=$([ "$SELECTED_RELEASE_VERSION" -gt 15 ] && echo "Baklava" || echo "$SELECTED_RELEASE_VERSION")
+
         # List of properties to include in the PIF.json file
         PIF_LIST="MODEL MANUFACTURER FINGERPRINT SECURITY_PATCH DEVICE_INITIAL_SDK_INT"
 
         # Build properties
         MODEL="$SELECTED_MODEL"
         MANUFACTURER="Google"
-        FINGERPRINT="google/${SELECTED_CODENAME}_beta/$SELECTED_CODENAME:$RELEASE_VERSION/$ID/$INCREMENTAL:user/release-keys"
+        FINGERPRINT="google/${SELECTED_CODENAME}_beta/$SELECTED_CODENAME:$SELECTED_RELEASE_VERSION_OR_CODENAME/$SELECTED_RELEASE_ID/$SELECTED_RELEASE_INCREMENTAL:user/release-keys"
         SECURITY_PATCH="$SECURITY_PATCH_DATE"
-        DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.first_api_level" "$SYSPROP_CONTENT")
-        [ -z "$DEVICE_INITIAL_SDK_INT" ] && DEVICE_INITIAL_SDK_INT=$(grep_prop "ro.product.build.version.sdk" "$SYSPROP_CONTENT")
 
         # Build the JSON object
         build_json "$PIF_LIST" >"$CWD_PIF"
@@ -195,10 +227,12 @@ PlayIntegrityFix() {
 
     # Show instructions only after we modified the PIF
     if [ $update_count -gt 0 ]; then
+      ui_print "***************************************"
       ui_print "  ? Please disconnect your device from your Google account: https://myaccount.google.com/device-activity"
       ui_print "  ? Clean the data from Google system apps such as GMS, GSF, and Google apps."
       ui_print "  ? Then restart and make sure to reconnect to your device, Make sure if your device is logged as \"$MODEL\"."
       ui_print "  ? More info: https://t.me/PixelProps/157"
+      ui_print "***************************************"
     fi
   fi
 }
