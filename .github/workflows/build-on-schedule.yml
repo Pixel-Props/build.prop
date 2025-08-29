@@ -35,7 +35,7 @@ jobs:
     needs: prepare_build
     strategy:
       matrix:
-        device_name: [comet, komodo, caiman, husky, tangorpro, felix, cheetah]
+        device_name: [comet, komodo, caiman, husky, tangorpro, felix, cheetah, frankel, blazer, mustang]
 
     runs-on: ubuntu-24.04
     steps:
