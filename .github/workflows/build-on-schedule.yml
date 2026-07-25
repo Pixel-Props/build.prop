@@ -35,7 +35,7 @@ jobs:
     needs: prepare_build
     strategy:
       matrix:
-        device_name: [rango_beta17q1, mustang_beta17q1, blazer_beta17q1, frankel_beta17q1, tegu_beta17q1, comet_beta17q1, komodo_beta17q1, caiman_beta17q1, tokay_beta17q1, akita_beta17q1, husky_beta17q1, shiba_beta17q1, tangorpro_beta17q1, felix_beta17q1]
+        device_name: [rango_beta17q2, mustang_beta17q2, blazer_beta17q2, frankel_beta17q2, tegu_beta17q2, comet_beta17q2, komodo_beta17q2, caiman_beta17q2, tokay_beta17q2, akita_beta17q2, husky_beta17q2, shiba_beta17q2, tangorpro_beta17q2, felix_beta17q2]
 
     runs-on: ubuntu-24.04
     steps:
