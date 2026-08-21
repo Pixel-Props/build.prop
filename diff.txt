@@ -1,0 +1,1133 @@
+diff --git a/.github/workflows/build-on-schedule.yml b/.github/workflows/build-on-schedule.yml
+deleted file mode 100644
+index cd63547..0000000
+--- a/.github/workflows/build-on-schedule.yml
++++ /dev/null
+@@ -1,139 +0,0 @@
+-name: Build props (on schedule)
+-
+-on:
+-  workflow_dispatch:
+-  schedule:
+-    - cron: '37 13 7 * *' # At 13:37 on day-of-month 7. (UTC)
+-
+-jobs:
+-  prepare_build:
+-    name: Create release
+-    runs-on: ubuntu-latest
+-    outputs:
+-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+-      id: ${{ steps.create_release.outputs.id }}
+-    steps:
+-      - name: Determine tag name
+-        id: get_tag_name
+-        run: |
+-          echo "tag_name=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
+-          echo "friendly_tag_name=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+-
+-      - name: Create a release
+-        id: create_release
+-        uses: actions/create-release@v1
+-        env:
+-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+-        with:
+-          tag_name: ${{ steps.get_tag_name.outputs.tag_name }}
+-          release_name: ${{ steps.get_tag_name.outputs.friendly_tag_name }}
+-          draft: false
+-          prerelease: false
+-
+-  build:
+-    name: Build props
+-    needs: prepare_build
+-    strategy:
+-      matrix:
+-        device_name: [comet, komodo, caiman, husky, tangorpro, felix, cheetah, frankel, blazer, mustang]
+-
+-    runs-on: ubuntu-24.04
+-    steps:
+-      - name: Checkout
+-        uses: actions/checkout@v4
+-        with:
+-          submodules: recursive
+-
+-      - name: Install APT packages
+-        run: |
+-          sudo apt install -y dos2unix
+-
+-      - name: Activate venv
+-        run: |
+-          python3 -m venv .venv/
+-          . .venv/bin/activate
+-          echo PATH=$PATH >> "$GITHUB_ENV"
+-
+-      - name: Install payload_dumper
+-        run: pip install ./payload_dumper/
+-
+-      - name: Make all scripts executable
+-        run: chmod +x *.sh
+-
+-      - name: Download latest OTA build for ${{ matrix.device_name }}
+-        run: ./download_latest_ota_build.sh ${{ matrix.device_name }}
+-
+-      - name: Extract images and build
+-        id: extract_and_build
+-        run: ./extract_images.sh
+-
+-      - name: Check if module build ID already exists
+-        id: check_build_id
+-        env:
+-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+-        shell: bash
+-        run: |
+-          BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
+-          BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
+-          echo "Checking if build ID ${BASENAME}_${BUILD_ID} exists in release notes..."
+-
+-          # Get the list of all releases
+-          RELEASES=$(gh release list --limit 100 --json tagName -q '.[].tagName')
+-
+-          # Search each release's body for the BUILD_ID
+-          BUILD_EXISTS=false
+-          for TAG in $RELEASES; do
+-            echo "Checking release: $TAG"
+-            RELEASE_BODY=$(gh release view "$TAG" --json body -q .body || true)
+-            if [[ "$RELEASE_BODY" == *"${BASENAME}_${BUILD_ID}"* ]]; then
+-              echo "Build ID ${BASENAME}_${BUILD_ID} found in release $TAG."
+-              BUILD_EXISTS=true
+-              break
+-            fi
+-          done
+-
+-          if [[ "$BUILD_EXISTS" == "true" ]]; then
+-            echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
+-          else
+-            echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT
+-          fi
+-
+-      - name: Upload files to release
+-        uses: actions/upload-release-asset@v1
+-        env:
+-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+-        with:
+-          upload_url: ${{ needs.prepare_build.outputs.upload_url }}
+-          asset_path: ./${{ steps.extract_and_build.outputs.module_base_name }}.zip
+-          asset_name: ${{ steps.extract_and_build.outputs.module_base_name }}.zip
+-          asset_content_type: application/zip
+-        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
+-
+-      - name: Add information to release
+-        uses: irongut/EditRelease@v1.2.0
+-        with:
+-          token: ${{ secrets.GITHUB_TOKEN }}
+-          id: ${{ needs.prepare_build.outputs.id }}
+-          replacebody: false
+-          body: |
+-            ## ${{ steps.extract_and_build.outputs.device_name }} (${{ steps.extract_and_build.outputs.device_codename }})
+-            #### Module
+-            - File name: `${{ steps.extract_and_build.outputs.module_base_name }}.zip`
+-            - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`
+-            #### Firmware
+-            - Build Description: `${{ steps.extract_and_build.outputs.device_build_description }}`
+-        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
+-
+-      - name: Send to Telegram
+-        run: |
+-          {
+-            echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_codename }}';
+-            echo '${{ steps.extract_and_build.outputs.device_build_description }}'
+-          } > .tg_caption
+-
+-          curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \
+-          -H "Content-Type: multipart/form-data" \
+-          -F "chat_id=${{ secrets.CHANNEL_ID }}" \
+-          -F "document=@${{ steps.extract_and_build.outputs.module_base_name }}.zip;type=application/zip" \
+-          -F "caption=$(cat .tg_caption)"
+-        if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+new file mode 100644
+index 0000000..d87da65
+--- /dev/null
++++ b/.github/workflows/build.yml
+@@ -0,0 +1,183 @@
++name: Build and Release Pixel Props
++
++on:
++  schedule:
++    - cron: '0 0 * * 0'
++  workflow_dispatch:
++    inputs:
++      devices:
++        description: 'Device codenames (space-separated, or "all")'
++        required: true
++        default: 'all'
++
++jobs:
++  prepare:
++    runs-on: ubuntu-latest
++    outputs:
++      devices: ${{ steps.set_devices.outputs.devices }}
++    steps:
++      - name: Determine device list
++        id: set_devices
++        run: |
++          if [ "${{ github.event.inputs.devices }}" = "all" ] || [ -z "${{ github.event.inputs.devices }}" ]; then
++            JSON='["comet", "komodo", "caiman", "husky", "tangorpro", "felix", "cheetah", "frankel", "blazer", "mustang", "cubs", "grizzly", "kodiak", "yogi"]'
++          else
++            JSON=$(echo '${{ github.event.inputs.devices }}' | tr ' ' '\n' | jq -R . | jq -s .)
++          fi
++          echo "devices=$JSON" >> "$GITHUB_OUTPUT"
++
++  build:
++    needs: prepare
++    runs-on: ubuntu-latest
++    strategy:
++      fail-fast: false
++      matrix:
++        device: ${{ fromJson(needs.prepare.outputs.devices) }}
++    steps:
++      - uses: actions/checkout@v4
++
++      - name: Install system dependencies
++        run: |
++          sudo apt-get update
++          sudo apt-get install -y p7zip-full e2fsprogs erofs-utils lz4 cpio \
++            dos2unix aria2 curl xxd python3 python3-pip jq
++
++      - name: Install Python dependencies
++        run: |
++          pip3 install payload_dumper
++          which payload_dumper || echo "$HOME/.local/bin" >> "$GITHUB_PATH"
++
++      - name: Download OTA for ${{ matrix.device }}
++        run: bash download_latest_ota_build.sh ${{ matrix.device }}
++
++      - name: Extract and build
++        run: bash extract_images.sh
++
++      - name: Check for duplicates
++        id: check
++        env:
++          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++        run: |
++          # The zip is created at repo root by build_module.sh, not in result/
++          zip=$(find . -maxdepth 1 -name "*.zip" -type f -print -quit 2>/dev/null)
++          if [ -z "$zip" ]; then
++            echo "has_new=false" >> "$GITHUB_OUTPUT"
++            exit 0
++          fi
++
++          name=$(basename "$zip")
++          echo "Built: $name"
++
++          EXISTING=$(mktemp)
++          trap 'rm -f "$EXISTING"' EXIT
++
++          gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null | \
++            while IFS= read -r tag; do
++              [ -n "$tag" ] || continue
++              gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null >> "$EXISTING" || true
++            done
++
++          if grep -qxF "$name" "$EXISTING" 2>/dev/null; then
++            echo "SKIP (already released): $name"
++            echo "has_new=false" >> "$GITHUB_OUTPUT"
++            rm -f "$zip"
++            exit 0
++          fi
++
++          # Extract metadata
++          codename=$(echo "$name" | cut -d_ -f1 | tr '[:upper:]' '[:lower:]')
++          prop=$(find extracted_images -maxdepth 2 -name "module.prop" -path "*/${codename}-ota-*" 2>/dev/null | head -1)
++          desc=""
++          if [ -f "$prop" ]; then
++            desc=$(grep '^description=' "$prop" | cut -d= -f2- | head -1)
++          fi
++
++          mkdir -p upload
++          mv "$zip" upload/
++          echo "$desc" > upload/metadata-${{ matrix.device }}.txt
++          echo "has_new=true" >> "$GITHUB_OUTPUT"
++
++      - name: Upload artifact
++        if: steps.check.outputs.has_new == 'true'
++        uses: actions/upload-artifact@v4
++        with:
++          name: module-${{ matrix.device }}
++          path: upload/*
++          retention-days: 1
++
++  release:
++    needs: build
++    runs-on: ubuntu-latest
++    if: always()
++    steps:
++      - name: Download artifacts
++        uses: actions/download-artifact@v4
++        with:
++          pattern: module-*
++          merge-multiple: true
++          path: new_modules/
++        continue-on-error: true
++
++      - name: Aggregate and publish
++        id: aggregate
++        env:
++          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++          GH_REPO: ${{ github.repository }}
++        run: |
++          mkdir -p new_modules
++          COUNT=$(ls new_modules/*.zip 2>/dev/null | wc -l)
++          if [ "$COUNT" -eq 0 ]; then
++            echo "has_new=false" >> "$GITHUB_OUTPUT"
++            exit 0
++          fi
++
++          # Build device list from metadata files
++          DEVICE_LIST=""
++          for meta in new_modules/metadata-*.txt; do
++            [ -f "$meta" ] || continue
++            desc=$(cat "$meta")
++            DEVICE_LIST="${DEVICE_LIST}- ${desc}"$'\n'
++          done
++
++          TAG="build-$(date +%Y%m%d)"
++          printf 'Automated build with %s new module(s).\n\nDevices:\n%s\n' \
++            "$COUNT" "$DEVICE_LIST" > /tmp/release_notes.md
++
++          # If release already exists, upload assets; else create it
++          if gh release view "$TAG" &>/dev/null; then
++            echo "Release $TAG already exists, uploading assets..."
++            gh release upload "$TAG" new_modules/*.zip --clobber
++          else
++            gh release create "$TAG" \
++              --title "Pixel Props $TAG" \
++              --notes-file /tmp/release_notes.md \
++              new_modules/*.zip
++          fi
++
++          echo "has_new=true" >> "$GITHUB_OUTPUT"
++          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
++          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
++          {
++            echo "devices<<EOF"
++            echo "$DEVICE_LIST"
++            echo "EOF"
++          } >> "$GITHUB_OUTPUT"
++
++      - name: Notify Telegram
++        if: steps.aggregate.outputs.has_new == 'true'
++        uses: appleboy/telegram-action@v1
++        with:
++          to: ${{ secrets.TELEGRAM_CHAT_ID }}
++          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
++          format: markdown
++          message: |
++            **Pixel Props — New Build Available**
++
++            **Tag:** `${{ steps.aggregate.outputs.tag }}`
++            **Modules:** ${{ steps.aggregate.outputs.count }}
++
++            **Devices:**
++            ${{ steps.aggregate.outputs.devices }}
++
++            [GitHub Releases](https://github.com/${{ github.repository }}/releases/tag/${{ steps.aggregate.outputs.tag }})
++          document: new_modules/*.zip
+diff --git a/.gitignore b/.gitignore
+index df8cd6a..f6c9a6f 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -4,6 +4,7 @@ result/*
+ dl/*
+ payload_dumper/*
+ imjtool
++unpack_bootimg.py
+ .venv
+ *.pyc
+ *.img
+diff --git a/build_bootanimation.sh b/build_bootanimation.sh
+old mode 100644
+new mode 100755
+diff --git a/build_module.sh b/build_module.sh
+old mode 100644
+new mode 100755
+index e3c5b29..ef53dca
+--- a/build_module.sh
++++ b/build_module.sh
+@@ -27,12 +27,17 @@ device_codename=${device_codename^}
+ # Construct the result base
+ base_name="${device_codename}_$device_build_id"
+ mkdir -p "result/$base_name/"
+-mkdir -p "result/$base_name/system/product/etc/"
+ 
+ # Copy relevant files
+-cp "$dir"/{module,system}.prop "result/$base_name/"
+-cp -r "$dir"/system/ "result/$base_name/"
+-cp -r ./module_files/* "result/$base_name/"
++cp "$dir"/{module,system}.prop "result/$base_name/" 2>/dev/null || {
++  print_message "Missing module.prop or system.prop in $dir" error
++}
++
++if [ -d "$dir/system" ]; then
++  cp -r "$dir"/system/ "result/$base_name/"
++fi
++
++cp -r ./module_files/* "result/$base_name/" 2>/dev/null || true
+ 
+ # Navigate to the module directory
+ cd "result/$base_name" || exit 1
+diff --git a/build_props.sh b/build_props.sh
+old mode 100644
+new mode 100755
+index f9e861a..ab3b274
+--- a/build_props.sh
++++ b/build_props.sh
+@@ -22,18 +22,28 @@ module_prop=""
+ 
+ brand_for_attestation="$(grep_prop "ro.product.brand_for_attestation" "$EXT_PROP_CONTENT")"
+ [ -z "$brand_for_attestation" ] && brand_for_attestation="$(grep_prop "ro.product.vendor.brand" "$EXT_PROP_CONTENT")"
++[ -z "$brand_for_attestation" ] && brand_for_attestation="$(grep_prop "ro.product.product.brand" "$EXT_PROP_CONTENT")"
++[ -z "$brand_for_attestation" ] && brand_for_attestation="$(grep_prop "ro.product.system.brand" "$EXT_PROP_CONTENT")"
+ 
+ device_for_attestation="$(grep_prop "ro.product.device_for_attestation" "$EXT_PROP_CONTENT")"
+ [ -z "$device_for_attestation" ] && device_for_attestation="$(grep_prop "ro.product.vendor.device" "$EXT_PROP_CONTENT")"
++[ -z "$device_for_attestation" ] && device_for_attestation="$(grep_prop "ro.product.product.device" "$EXT_PROP_CONTENT")"
++[ -z "$device_for_attestation" ] && device_for_attestation="$(grep_prop "ro.product.system.device" "$EXT_PROP_CONTENT")"
+ 
+ manufacturer_for_attestation="$(grep_prop "ro.product.manufacturer_for_attestation" "$EXT_PROP_CONTENT")"
+ [ -z "$manufacturer_for_attestation" ] && manufacturer_for_attestation="$(grep_prop "ro.product.vendor.manufacturer" "$EXT_PROP_CONTENT")"
++[ -z "$manufacturer_for_attestation" ] && manufacturer_for_attestation="$(grep_prop "ro.product.product.manufacturer" "$EXT_PROP_CONTENT")"
++[ -z "$manufacturer_for_attestation" ] && manufacturer_for_attestation="$(grep_prop "ro.product.system.manufacturer" "$EXT_PROP_CONTENT")"
+ 
+ model_for_attestation="$(grep_prop "ro.product.model_for_attestation" "$EXT_PROP_CONTENT")"
+ [ -z "$model_for_attestation" ] && model_for_attestation="$(grep_prop "ro.product.vendor.model" "$EXT_PROP_CONTENT")"
++[ -z "$model_for_attestation" ] && model_for_attestation="$(grep_prop "ro.product.product.model" "$EXT_PROP_CONTENT")"
++[ -z "$model_for_attestation" ] && model_for_attestation="$(grep_prop "ro.product.system.model" "$EXT_PROP_CONTENT")"
+ 
+ name_for_attestation="$(grep_prop "ro.product.name_for_attestation" "$EXT_PROP_CONTENT")"
+ [ -z "$name_for_attestation" ] && name_for_attestation="$(grep_prop "ro.product.vendor.name" "$EXT_PROP_CONTENT")"
++[ -z "$name_for_attestation" ] && name_for_attestation="$(grep_prop "ro.product.product.name" "$EXT_PROP_CONTENT")"
++[ -z "$name_for_attestation" ] && name_for_attestation="$(grep_prop "ro.product.system.name" "$EXT_PROP_CONTENT")"
+ 
+ # Build our system.prop
+ to_system_prop "##
+@@ -69,6 +79,7 @@ build_system_prop "ro.product.build.date"
+ build_system_prop "ro.product.build.date.utc"
+ build_system_prop "ro.product.build.fingerprint"
+ build_system_prop "ro.product.build.id"
++build_system_prop "ro.product.build.uuid"
+ build_system_prop "ro.product.build.tags"
+ build_system_prop "ro.product.build.type"
+ build_system_prop "ro.product.build.version.incremental"
+@@ -87,24 +98,6 @@ build_system_prop "ro.quick_start.oem_id"
+ build_system_prop "ro.quick_start.device_id"
+ to_system_prop "# end PRODUCT_PRODUCT_PROPERTIES
+ 
+-# begin PRODUCT_BOOTIMAGE_PROPERTIES"
+-add_prop_as_ini to_system_prop "ro.product.bootimage.brand" "$brand_for_attestation"
+-add_prop_as_ini to_system_prop "ro.product.bootimage.device" "$device_for_attestation"
+-add_prop_as_ini to_system_prop "ro.product.bootimage.manufacturer" "$manufacturer_for_attestation"
+-add_prop_as_ini to_system_prop "ro.product.bootimage.model" "$model_for_attestation"
+-add_prop_as_ini to_system_prop "ro.product.bootimage.name" "$name_for_attestation"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.date" "$(grep_prop "ro.vendor.build.date" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.date.utc" "$(grep_prop "ro.vendor.build.date.utc" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.fingerprint" "$(grep_prop "ro.vendor.build.fingerprint" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.id" "$(grep_prop "ro.vendor.build.id" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.tags" "$(grep_prop "ro.vendor.build.tags" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.type" "$(grep_prop "ro.vendor.build.type" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.version.incremental" "$(grep_prop "ro.vendor.build.version.incremental" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.version.release" "$(grep_prop "ro.vendor.build.version.release" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.version.release_or_codename" "$(grep_prop "ro.vendor.build.version.release_or_codename" "$EXT_PROP_CONTENT")"
+-add_prop_as_ini to_system_prop "ro.bootimage.build.version.sdk" "$(grep_prop "ro.vendor.build.version.sdk" "$EXT_PROP_CONTENT")"
+-to_system_prop "# end PRODUCT_BOOTIMAGE_PROPERTIES
+-
+ ###
+ # end product/etc/build.prop
+ ###
+@@ -113,6 +106,35 @@ to_system_prop "# end PRODUCT_BOOTIMAGE_PROPERTIES
+ #-#
+ ###
+ 
++###
++# begin system/etc/ramdisk/build.prop
++###
++"
++build_system_prop "ro.product.bootimage.brand"
++build_system_prop "ro.product.bootimage.device"
++build_system_prop "ro.product.bootimage.manufacturer"
++build_system_prop "ro.product.bootimage.model"
++build_system_prop "ro.product.bootimage.name"
++build_system_prop "ro.bootimage.build.date"
++build_system_prop "ro.bootimage.build.date.utc"
++build_system_prop "ro.bootimage.build.fingerprint"
++build_system_prop "ro.bootimage.build.id"
++build_system_prop "ro.bootimage.build.uuid"
++build_system_prop "ro.bootimage.build.tags"
++build_system_prop "ro.bootimage.build.type"
++build_system_prop "ro.bootimage.build.version.incremental"
++build_system_prop "ro.bootimage.build.version.release"
++build_system_prop "ro.bootimage.build.version.release_or_codename"
++build_system_prop "ro.bootimage.build.version.sdk"
++to_system_prop "
++###
++# end system/etc/ramdisk/build.prop
++###
++
++###
++#-#
++###
++
+ ###
+ # begin vendor/build.prop
+ ###
+@@ -127,6 +149,7 @@ build_system_prop "ro.vendor.build.date"
+ build_system_prop "ro.vendor.build.date.utc"
+ build_system_prop "ro.vendor.build.fingerprint"
+ build_system_prop "ro.vendor.build.id"
++build_system_prop "ro.vendor.build.uuid"
+ build_system_prop "ro.vendor.build.tags"
+ build_system_prop "ro.vendor.build.type"
+ build_system_prop "ro.vendor.build.version.incremental"
+@@ -160,7 +183,7 @@ build_system_prop "ro.hardware.gatekeeper"
+ build_system_prop "persist.vendor.enable.thermal.genl"
+ build_system_prop "ro.incremental.enable"
+ build_system_prop "ro.build.device_family"
+-add_prop_as_ini to_system_prop "vendor.usb.product_string" "$model_for_attestation"
++# add_prop_as_ini to_system_prop "vendor.usb.product_string" "$model_for_attestation"
+ # add_prop_as_ini to_system_prop "bluetooth.device.default_name" "$model_for_attestation"
+ to_system_prop "# end PRODUCT_PROPERTY_OVERRIDES
+ 
+@@ -186,6 +209,7 @@ build_system_prop "ro.odm.build.date"
+ build_system_prop "ro.odm.build.date.utc"
+ build_system_prop "ro.odm.build.fingerprint"
+ build_system_prop "ro.odm.build.id"
++build_system_prop "ro.odm.build.uuid"
+ build_system_prop "ro.odm.build.tags"
+ build_system_prop "ro.odm.build.type"
+ build_system_prop "ro.odm.build.version.incremental"
+@@ -212,6 +236,7 @@ build_system_prop "ro.odm_dlkm.build.date"
+ build_system_prop "ro.odm_dlkm.build.date.utc"
+ build_system_prop "ro.odm_dlkm.build.fingerprint"
+ build_system_prop "ro.odm_dlkm.build.id"
++build_system_prop "ro.odm_dlkm.build.uuid"
+ build_system_prop "ro.odm_dlkm.build.tags"
+ build_system_prop "ro.odm_dlkm.build.type"
+ build_system_prop "ro.odm_dlkm.build.version.incremental"
+@@ -242,6 +267,7 @@ build_system_prop "ro.vendor_dlkm.build.date"
+ build_system_prop "ro.vendor_dlkm.build.date.utc"
+ build_system_prop "ro.vendor_dlkm.build.fingerprint"
+ build_system_prop "ro.vendor_dlkm.build.id"
++build_system_prop "ro.vendor_dlkm.build.uuid"
+ build_system_prop "ro.vendor_dlkm.build.tags"
+ build_system_prop "ro.vendor_dlkm.build.type"
+ build_system_prop "ro.vendor_dlkm.build.version.incremental"
+@@ -272,6 +298,7 @@ build_system_prop "ro.system.build.date"
+ build_system_prop "ro.system.build.date.utc"
+ build_system_prop "ro.system.build.fingerprint"
+ build_system_prop "ro.system.build.id"
++build_system_prop "ro.system.build.uuid"
+ build_system_prop "ro.system.build.tags"
+ build_system_prop "ro.system.build.type"
+ build_system_prop "ro.system.build.version.incremental"
+@@ -283,8 +310,9 @@ to_system_prop "# end common build properties
+ # begin build properties"
+ add_prop_as_ini to_system_prop "ro.build.fingerprint" "$(grep_prop "ro.system.build.fingerprint" "$EXT_PROP_CONTENT")"
+ build_system_prop "ro.build.id"
++build_system_prop "ro.build.uuid"
+ build_system_prop "ro.build.display.id"
+-build_system_prop "ro.build.product"
++# build_system_prop "ro.build.product"
+ build_system_prop "ro.build.description"
+ build_system_prop "ro.build.version.incremental"
+ build_system_prop "ro.build.version.sdk"
+@@ -326,6 +354,7 @@ build_system_prop "ro.system_ext.build.date"
+ build_system_prop "ro.system_ext.build.date.utc"
+ build_system_prop "ro.system_ext.build.fingerprint"
+ build_system_prop "ro.system_ext.build.id"
++build_system_prop "ro.system_ext.build.uuid"
+ build_system_prop "ro.system_ext.build.tags"
+ build_system_prop "ro.system_ext.build.type"
+ build_system_prop "ro.system_ext.build.version.incremental"
+@@ -352,6 +381,7 @@ build_system_prop "ro.system_dlkm.build.date"
+ build_system_prop "ro.system_dlkm.build.date.utc"
+ build_system_prop "ro.system_dlkm.build.fingerprint"
+ build_system_prop "ro.system_dlkm.build.id"
++build_system_prop "ro.system_dlkm.build.uuid"
+ build_system_prop "ro.system_dlkm.build.tags"
+ build_system_prop "ro.system_dlkm.build.type"
+ build_system_prop "ro.system_dlkm.build.version.incremental"
+diff --git a/build_sysconfig.sh b/build_sysconfig.sh
+old mode 100644
+new mode 100755
+index a9292cf..1d4155e
+--- a/build_sysconfig.sh
++++ b/build_sysconfig.sh
+@@ -9,5 +9,24 @@ process_directories "${BASH_SOURCE[0]}" "$1"
+ # List of files to copy
+ files_to_copy="nga pixel_experience_ google.xml google_build.xml google_fi.xml adaptivecharging.xml quick_tap.xml"
+ 
++# Try multiple sysconfig source locations
++sysconfig_src=""
++for candidate in \
++  "$dir/extracted/product/etc/sysconfig" \
++  "$dir/extracted/system/product/etc/sysconfig" \
++  "$dir/extracted/system/system/etc/sysconfig" \
++  "$dir/extracted/system_ext/etc/sysconfig"
++do
++  if [ -d "$candidate" ] && [ -n "$(ls -A "$candidate"/*.xml 2>/dev/null)" ]; then
++    sysconfig_src="$candidate"
++    break
++  fi
++done
++
++if [ -z "$sysconfig_src" ]; then
++  print_message "No sysconfig directory found with XML files, skipping…" warning
++  exit 0
++fi
++
+ # Copy specific files
+-copy_specific_files "$dir/extracted/product/etc/sysconfig" "$dir/system/product/etc/sysconfig/" "$files_to_copy"
++copy_specific_files "$sysconfig_src" "$dir/system/product/etc/sysconfig/" "$files_to_copy"
+diff --git a/download_latest_ota_build.sh b/download_latest_ota_build.sh
+index 97b5026..253cebe 100644
+--- a/download_latest_ota_build.sh
++++ b/download_latest_ota_build.sh
+@@ -25,8 +25,8 @@ for device_name in "$@"; do # Loop over each argument (device name)
+   # Extract any possible Android version from the device name
+   android_version=$(echo "$device_name" | grep -oP '\K\d+')
+ 
+-  # Check if the Android version is between 14 and 16, otherwise print warning
+-  [[ $android_version -ge 14 && $android_version -le 16 ]] || print_message "Android version isn't between 14 and 16, Trying anyway…" warning
++  # Check if the Android version is between 14 and 17, otherwise print warning
++  [[ $android_version -ge 14 && $android_version -le 17 ]] || print_message "Android version isn't between 14 and 17, Trying anyway…" warning
+ 
+   # Assign android_version, defaulting to 15 if not set
+   android_version="${android_version:-15}"
+diff --git a/extract_images.sh b/extract_images.sh
+index 52c300a..87ce136 100644
+--- a/extract_images.sh
++++ b/extract_images.sh
+@@ -3,6 +3,9 @@
+ # Using util_functions.sh
+ [ -f "util_functions.sh" ] && . ./util_functions.sh || { echo "util_functions.sh not found" && exit 1; }
+ 
++# Using requirements.sh
++[ -f "requirements.sh" ] && . ./requirements.sh || { echo "requirements.sh not found" && exit 1; }
++
+ # Extracted image paths
+ EI="./extracted_images"
+ EAI="./extracted_archive_images"
+@@ -69,20 +72,18 @@ if [ -d "$EAI_BP" ]; then
+ 				# Time the extraction
+ 				extraction_start=$(date +%s)
+ 
+-				# Extract/Dump
++			    # Extract/Dump
+ 				if [ "${file: -4}" == ".bin" ]; then # If is payload use the Android OTA Dumper
+-					# Format the patitions to dump for argument usage
+-					partitionsArgs=$(
+-						IFS=,
+-						echo "${PARTITIONS2EXTRACT[*]}"
+-					)
+-
+-					# Skip image if it failed to get extracted
+-					if ! payload_dumper "$file" --partitions="$partitionsArgs" --out="$EI_BP/$basename" 2>/dev/null; then
+-						print_message "Failed to extract $file using Android OTA Dumper. Skipping…\n" warning
+-						rm -rf "$EI_BP/$basename" # TODO: Use "${var:?}" to ensure this never expands to / .
+-						continue
+-					fi
++					# Dump one partition at a time to keep memory usage low
++					for image_name in "${PARTITIONS2EXTRACT[@]}"; do
++						print_message "Dumping \"$image_name\" from payload…" debug
++
++						if ! payload_dumper "$file" --partitions="$image_name" --out="$EI_BP/$basename" 2>/dev/null; then
++							print_message "Failed to extract $image_name from $file using Android OTA Dumper. Skipping…" warning
++							rm -f "$EI_BP/$basename/$image_name.img"
++							continue
++						fi
++					done
+ 				else # Else directly extract all the required image using 7z
+ 					for image_name in "${PARTITIONS2EXTRACT[@]}"; do
+ 						print_message "Extracting \"$image_name\"…" debug
+@@ -108,12 +109,18 @@ if [ -d "$EAI_BP" ]; then
+ 			fi
+ 		done
+ 	else
+-		print_message "The directory \"$EAI_BP\" does not have any ZIP or BIN files.\n" error
++		print_message "The directory \"$EAI_BP\" does not have any ZIP or BIN files.\n" warning
+ 	fi
+ fi
+ 
+ # Extract the images directories
+ [ -d "$EI" ] && print_message "Extracting images…\n" info
++
++# Sanity check: if we have nothing in extracted_images and nothing in extracted_archive_images, abort
++if [ ! -d "$EI" ] || [ -z "$(ls -A "$EI" 2>/dev/null)" ]; then
++  print_message "No extracted images in \"$EI_BP\" and no archives in \"$EAI_BP\". Nothing to process.\n" error
++fi
++
+ for dir in "$EI"/*; do  # List directory ./*
+ 	if [ -d "$dir" ]; then # Check if it is a directory
+ 		dir=${dir%*/}         # Remove last /
+@@ -126,7 +133,6 @@ for dir in "$EI"/*; do  # List directory ./*
+ 		for image_name in "${PARTITIONS2EXTRACT[@]}"; do
+ 			if [ -f "$dir/$image_name.img" ]; then
+ 				extract_image "$dir" "$image_name"
+-				rm "$dir/$image_name.img"
+ 			fi
+ 		done
+ 
+diff --git a/payload_dumper b/payload_dumper
+index 6986660..6d4d2d3 160000
+--- a/payload_dumper
++++ b/payload_dumper
+@@ -1 +1 @@
+-Subproject commit 6986660c86212092c330b040a2b0ae002ee5ffa6
++Subproject commit 6d4d2d3ede13c37ab84d5737396eff8276d9fbf0
+diff --git a/requirements.sh b/requirements.sh
+index 1ce5e50..4c4f83c 100644
+--- a/requirements.sh
++++ b/requirements.sh
+@@ -1,12 +1,16 @@
+ #!/bin/bash
+ 
++# Only run requirements check once per shell session
++[ -n "$PIXEL_PROPS_REQS_DONE" ] && return 0
++PIXEL_PROPS_REQS_DONE=1
++
+ # Those are the only partitions we need for building properties
+-declare PARTITIONS2EXTRACT=("product" "vendor" "vendor_dlkm" "system" "system_ext" "system_dlkm")
++declare PARTITIONS2EXTRACT=("product" "vendor" "vendor_dlkm" "system" "system_ext" "system_dlkm" "init_boot")
+ 
+ [[ $(type -t "print_message") != function ]] && . ./util_functions.sh
+ 
+ # Install required packages and libs
+-install_packages "zip" "p7zip" "dos2unix" "aria2"
++install_packages "zip" "p7zip" "erofs-utils" "lz4" "cpio" "dos2unix" "aria2"
+ 
+ # Check whethever python was installed, TODO: Improve install_packages function.
+ if ! command -v python3 >/dev/null 2>&1; then
+@@ -19,8 +23,9 @@ python3 -m pip -V &>/dev/null || print_message "Could not find pip module in pyt
+ # Check if payload_dumper is available
+ payload_dumper -h &>/dev/null || print_message "Could not find payload_dumper executable. Install it using python3 -m pip install payload_dumper/" error
+ 
+-# Install imjtool if not already installed
+-while [ ! -f "./imjtool" ]; do
+-	print_message "./imjtool not found. Installing imjtool…" info
+-	aria2c "http://newandroidbook.com/tools/imjtool"
++# Install unpack_bootimg if not already installed
++while [ ! -f "./unpack_bootimg.py" ]; do
++	print_message "./unpack_bootimg.py not found. installing…" info
++	aria2c -q "https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/master/unpack_bootimg.py?format=TEXT" -o unpack.b64 && base64 -d unpack.b64 > unpack_bootimg.py && rm unpack.b64
++    chmod +x unpack_bootimg.py
+ done
+diff --git a/util_functions.sh b/util_functions.sh
+index 4c077fe..22f539b 100644
+--- a/util_functions.sh
++++ b/util_functions.sh
+@@ -59,40 +59,111 @@ process_directories() {
+ # Function to install packages by name using various package managers
+ install_packages() {
+   local package_names=("$@")
+-
+-  # Determine the appropriate package manager
+   local package_manager=""
+-  if command -v apt-get >/dev/null 2>&1; then
+-    package_manager="apt-get"
+-  elif command -v apt >/dev/null 2>&1; then
+-    package_manager="apt"
+-  elif command -v pacman >/dev/null 2>&1; then
+-    package_manager="pacman"
+-  elif command -v yum >/dev/null 2>&1; then
+-    package_manager="yum"
+-  elif command -v dnf >/dev/null 2>&1; then
+-    package_manager="dnf"
+-  elif command -v zypper >/dev/null 2>&1; then
+-    package_manager="zypper"
+-  elif command -v pkg >/dev/null 2>&1; then
+-    package_manager="pkg"
+-  else
+-    print_message "Error: No supported package manager found on this system." error
+-    return 1
++  local pm_needs_sudo=true
++  local pm_update_cmd=()
++  local pm_install_cmd=()
++  local pm_query_cmd=()
++  local pm_query_pattern=""
++  local pm_query_use_exit_code=false
++
++  # ── Detect Termux early ──
++  if [[ -n "${TERMUX_VERSION:-}" ]] || [[ "${PREFIX:-}" == *"com.termux"* ]]; then
++    if command -v pkg >/dev/null 2>&1; then
++      package_manager="pkg"
++      pm_needs_sudo=false
++      pm_update_cmd=(pkg update)
++      pm_install_cmd=(pkg install -y)
++      # CRITICAL: pkg info == apt show, returns 0 for available (uninstalled) packages!
++      # Termux is dpkg-based, so use dpkg-query for accurate install detection
++      pm_query_cmd=(dpkg-query -W --showformat='${Status}\n')
++      pm_query_pattern="install ok installed"
++      pm_query_use_exit_code=false
++    fi
++  fi
++
++  # ── Detect package manager (normal flow) ──
++  if [[ -z "$package_manager" ]]; then
++    if command -v apt-get >/dev/null 2>&1; then
++      package_manager="apt-get"
++      pm_update_cmd=(apt-get update -qq)
++      pm_install_cmd=(apt-get install -y -qq)
++      pm_query_cmd=(dpkg-query -W --showformat='${Status}\n')
++      pm_query_pattern="install ok installed"
++    elif command -v apt >/dev/null 2>&1; then
++      package_manager="apt"
++      pm_update_cmd=(apt update -qq)
++      pm_install_cmd=(apt install -y -qq)
++      pm_query_cmd=(dpkg-query -W --showformat='${Status}\n')
++      pm_query_pattern="install ok installed"
++    elif command -v pacman >/dev/null 2>&1; then
++      package_manager="pacman"
++      pm_update_cmd=(pacman -Sy)
++      pm_install_cmd=(pacman -S --noconfirm --needed)
++      pm_query_cmd=(pacman -Q)
++      pm_query_use_exit_code=true
++    elif command -v dnf >/dev/null 2>&1; then
++      package_manager="dnf"
++      pm_update_cmd=(dnf makecache -y)
++      pm_install_cmd=(dnf install -y)
++      pm_query_cmd=(rpm -q)
++      pm_query_use_exit_code=true
++    elif command -v yum >/dev/null 2>&1; then
++      package_manager="yum"
++      pm_update_cmd=(yum makecache -y)
++      pm_install_cmd=(yum install -y)
++      pm_query_cmd=(rpm -q)
++      pm_query_use_exit_code=true
++    elif command -v zypper >/dev/null 2>&1; then
++      package_manager="zypper"
++      pm_update_cmd=(zypper refresh)
++      pm_install_cmd=(zypper install -y)
++      pm_query_cmd=(zypper -q info)
++      pm_query_pattern="^Installed.*: Yes"
++    elif command -v apk >/dev/null 2>&1; then
++      package_manager="apk"
++      pm_needs_sudo=false
++      pm_update_cmd=(apk update)
++      pm_install_cmd=(apk add)
++      pm_query_cmd=(apk info -e)
++      pm_query_use_exit_code=true
++    elif command -v xbps-install >/dev/null 2>&1; then
++      package_manager="xbps"
++      pm_update_cmd=(xbps-install -S)
++      pm_install_cmd=(xbps-install -y)
++      pm_query_cmd=(xbps-query)
++      pm_query_use_exit_code=true
++    elif command -v brew >/dev/null 2>&1; then
++      package_manager="brew"
++      pm_needs_sudo=false
++      pm_update_cmd=(brew update)
++      pm_install_cmd=(brew install)
++      pm_query_cmd=(brew list)
++      pm_query_use_exit_code=true
++    elif command -v pkg >/dev/null 2>&1; then
++      # FreeBSD pkg (non-Termux)
++      package_manager="pkg"
++      pm_update_cmd=(pkg update)
++      pm_install_cmd=(pkg install -y)
++      pm_query_cmd=(pkg info)
++      pm_query_use_exit_code=true
++    else
++      print_message "Error: No supported package manager found on this system." error
++      return 1
++    fi
+   fi
+ 
+-  # Determine if root/sudo privileges are available
++  # ── Determine sudo usage ──
+   local use_sudo=false
+-  if [[ $EUID -ne 0 ]]; then
++  if $pm_needs_sudo && [[ $EUID -ne 0 ]]; then
+     if command -v sudo >/dev/null 2>&1; then
+       use_sudo=true
+     else
+-      print_message "Error: This script requires root privileges (sudo) to install packages." error
++      print_message "Error: Package installation requires root privileges (sudo not found)." error
+       return 1
+     fi
+   fi
+ 
+-  # Function to execute a command with optional sudo
+   run_command() {
+     if $use_sudo; then
+       sudo "$@"
+@@ -101,74 +172,48 @@ install_packages() {
+     fi
+   }
+ 
+-  # Update package lists (if applicable)
+-  case "$package_manager" in
+-  apt-get | apt | yum | dnf | zypper)
+-    run_command $package_manager update -y >/dev/null 2>&1
+-    ;;
+-  pacman)
+-    run_command $package_manager -Sy >/dev/null 2>&1
+-    ;;
+-  esac
++  # ── Update package lists ──
++  if [[ ${#pm_update_cmd[@]} -gt 0 ]]; then
++    print_message "Updating $package_manager package lists…" debug
++    if ! run_command "${pm_update_cmd[@]}" >/dev/null 2>&1; then
++      print_message "Warning: Failed to update package lists (continuing anyway)…" warning
++    fi
++  fi
+ 
+-  # Install packages
++  # ── Install packages ──
++  local failed=0
+   for package in "${package_names[@]}"; do
+-    local is_installed=1 # Assume package is NOT installed initially
++    local is_installed=false
+ 
+-    # Check if the package is already installed
+-    case "$package_manager" in
+-    apt-get | apt)
+-      # CORRECT: Check for "install ok installed"
+-      is_installed=$(dpkg-query -W --showformat='${Status}\n' "$package" 2>/dev/null | grep -c "install ok installed")
+-      ;;
+-    pacman)
+-      # Check the exit code, 0 means installed
+-      if pacman -Q "$package" >/dev/null 2>&1; then
+-        is_installed=0
+-      fi
+-      ;;
+-    yum | dnf)
+-      # Check the exit code, 0 means installed
+-      if rpm -q "$package" >/dev/null 2>&1; then
+-        is_installed=0
++    # Check if already installed
++    if $pm_query_use_exit_code; then
++      if "${pm_query_cmd[@]}" "$package" >/dev/null 2>&1; then
++        is_installed=true
+       fi
+-      ;;
+-    zypper)
+-      is_installed=$(zypper -q info "$package" 2>/dev/null | grep -c "Installed")
+-      ;;
+-    pkg)
+-      # Check the exit code, 0 means installed
+-      if pkg info "$package" >/dev/null 2>&1; then
+-        is_installed=0
++    else
++      if "${pm_query_cmd[@]}" "$package" 2>/dev/null | grep -q "$pm_query_pattern"; then
++        is_installed=true
+       fi
+-      ;;
+-    esac
+-
+-    # Install the package if it's not already installed
+-    if [ "$is_installed" -ne 1 ]; then
+-      print_message "Installing $package…" info
+-      case "$package_manager" in
+-      apt-get | apt)
+-        run_command $package_manager install -y "$package" >/dev/null 2>&1
+-        ;;
+-      pacman)
+-        run_command $package_manager -S --noconfirm "$package" >/dev/null 2>&1
+-        ;;
+-      yum | dnf)
+-        run_command $package_manager install -y "$package" >/dev/null 2>&1
+-        ;;
+-      zypper)
+-        run_command $package_manager install -y "$package" >/dev/null 2>&1
+-        ;;
+-      pkg)
+-        run_command $package_manager install -y "$package" >/dev/null 2>&1
+-        ;;
+-      esac
++    fi
++
++    if $is_installed; then
++      print_message "$package is already installed, skipping." debug
++      continue
++    fi
++
++    print_message "Installing $package via $package_manager…" info
++    if run_command "${pm_install_cmd[@]}" "$package" >/dev/null 2>&1; then
+       print_message "$package installed successfully." info
++    else
++      print_message "Failed to install $package via $package_manager." error
++      ((failed++))
+     fi
+   done
++
++  return $((failed > 0 ? 1 : 0))
+ }
+ 
++
+ # Copy files from source to destination directory based on specified patterns
+ #
+ # Args:
+@@ -257,7 +302,7 @@ grep_prop() {
+   if [[ -f "$FILES_or_VAR" ]]; then
+     grep -m1 "^$PROP=" "$FILES_or_VAR" 2>/dev/null | cut -d= -f2- | head -n 1
+   else
+-    echo "$FILES_or_VAR" | grep -m1 "^$PROP=" 2>/dev/null | cut -d= -f2- | head -n 1
++    grep -m1 "^$PROP=" <<< "$FILES_or_VAR" 2>/dev/null | cut -d= -f2- | head -n 1
+   fi
+ }
+ 
+@@ -309,8 +354,8 @@ add_prop_as_ini() {
+   fi
+ 
+   if [ -z "$3" ]; then
+-    print_message "No property value provided for $2" error
+-    return 1
++    print_message "No property value provided for $2, skipping…" warning
++    return 0
+   fi
+ 
+   "$1" "$2=$3"
+@@ -328,6 +373,76 @@ build_system_prop() {
+   add_prop_as_ini "to_system_prop" "$prop_name" "$prop_value"
+ }
+ 
++extract_ext4() {
++  local img="$1"
++  local dest="$2"
++
++  print_message "Extracting ext4 image via 7z…" debug
++  mkdir -p "$dest"
++  # 7z reads ext4 fine; single-thread to keep RAM low
++  7z x "$img" -o"$dest" -y -mmt1 &>/dev/null
++}
++
++extract_erofs() {
++  local img="$1"
++  local dest="$2"
++
++  if ! command -v fsck.erofs >/dev/null 2>&1; then
++    print_message "fsck.erofs not found. Install erofs-utils." warning
++    return 1
++  fi
++
++  print_message "Extracting EROFS image via fsck.erofs…" debug
++  
++  # --force allows extracting to existing/non-empty directories
++  if ! fsck.erofs --extract="$dest" --force "$img" &>/dev/null; then
++    print_message "Failed to extract EROFS image ${img##*/}, skipping…" warning
++    return 1
++  fi
++}
++
++extract_android_boot() {
++  local img="$1"
++  local dest="$2"
++
++  local boot_out="$dest/.boot_tmp_$$"
++  mkdir -p "$boot_out"
++
++  if ! python3 ./unpack_bootimg.py --boot_img "$img" --out "$boot_out" >/dev/null 2>&1; then
++    rm -rf "$boot_out"
++    return 1
++  fi
++
++  if [ ! -f "$boot_out/ramdisk" ]; then
++    rm -rf "$boot_out"
++    return 1
++  fi
++
++  mkdir -p "$boot_out/rd"
++  local compr
++  compr=$(file -b "$boot_out/ramdisk" | awk '{print tolower($1)}')
++
++  case "$compr" in
++    lz4)
++      lz4 -d "$boot_out/ramdisk" - | (cd "$boot_out/rd" && cpio -idmv 2>/dev/null)
++      ;;
++    gzip)
++      gunzip -c "$boot_out/ramdisk" | (cd "$boot_out/rd" && cpio -idmv 2>/dev/null)
++      ;;
++    *)
++      (cd "$boot_out/rd" && cpio -idmv 2>/dev/null) < "$boot_out/ramdisk"
++      ;;
++  esac
++
++  find "$boot_out/rd" -name "build.prop" | while read -r f; do
++    local rel="${f#$boot_out/rd}"
++    mkdir -p "$dest$(dirname "$rel")"
++    cp "$f" "$dest$rel"
++  done
++
++  rm -rf "$boot_out"
++}
++
+ extract_image() {
+   if [ -z "$1" ]; then
+     print_message "No directory destination provided" error
+@@ -339,15 +454,59 @@ extract_image() {
+     return 1
+   fi
+ 
+-  if [ -f "$1/$2.img" ]; then
+-    print_message "Extracting \"${1##*/}/$2.img\"" debug
+-
+-    7z x "$1/$2.img" -o"$1/extracted/$2" -y &>/dev/null
+-    # ImjTool not required since of A13?
+-    # ./imjtool "$1/$2.img" extract &>/dev/null
+-    # rm -rf extracted
++  local img_path="$1/$2.img"
++  local dest_dir="$1/extracted/$2"
++
++  [ ! -f "$img_path" ] && return 0
++
++  print_message "Extracting \"${1##*/}/$2.img\"" debug
++  mkdir -p "$dest_dir"
++
++  # ── Step 1: Handle sparse images ──
++  local work_img="$img_path"
++  local raw_img=""
++
++  local magic
++  magic=$(xxd -l 4 -p "$img_path" 2>/dev/null || echo "")
++  if [ "$magic" = "3aff26ed" ] || file -b "$img_path" 2>/dev/null | grep -qi "sparse"; then
++    if command -v simg2img >/dev/null 2>&1; then
++      raw_img="$1/$2.raw"
++      print_message "Converting sparse image to raw…" debug
++      if simg2img "$img_path" "$raw_img" 2>/dev/null; then
++        work_img="$raw_img"
++      else
++        print_message "simg2img failed, working with image as-is…" warning
++        raw_img=""
++      fi
++    else
++      print_message "simg2img not found, cannot convert sparse image." warning
++    fi
+   fi
++
++  # ── Step 2: Detect image type and extract ──
++  local fs_type
++  fs_type=$(file -b "$work_img" 2>/dev/null | head -1 | awk '{print tolower($1)}')
++
++  case "$fs_type" in
++    erofs)
++      extract_erofs "$work_img" "$dest_dir" || true
++      ;;
++    ext*|"linux")
++      extract_ext4 "$work_img" "$dest_dir" || true
++      ;;
++    android)
++      extract_android_boot "$work_img" "$dest_dir" || true
++      ;;
++    *)
++      print_message "Unknown filesystem ($fs_type), trying 7z fallback…" warning
++      7z x "$work_img" -o"$dest_dir" -y -mmt1 &>/dev/null || true
++      ;;
++  esac
++
++  # Cleanup
++  [ -n "$raw_img" ] && rm -f "$raw_img"
++  rm -f "$img_path"
+ }
+ 
+ # Using requirements.sh
+-[ -f "requirements.sh" ] && . ./requirements.sh || { echo "requirements.sh not found" && exit 1; }
++# [ -f "requirements.sh" ] && . ./requirements.sh || { echo "requirements.sh not found" && exit 1; }

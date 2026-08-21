@@ -25,8 +25,8 @@ for device_name in "$@"; do # Loop over each argument (device name)
   # Extract any possible Android version from the device name
   android_version=$(echo "$device_name" | grep -oP '\K\d+')
 
-  # Check if the Android version is between 14 and 16, otherwise print warning
-  [[ $android_version -ge 14 && $android_version -le 16 ]] || print_message "Android version isn't between 14 and 16, Trying anyway…" warning
+  # Check if the Android version is between 14 and 17, otherwise print warning
+  [[ $android_version -ge 14 && $android_version -le 17 ]] || print_message "Android version isn't between 14 and 17, Trying anyway…" warning
 
   # Assign android_version, defaulting to 15 if not set
   android_version="${android_version:-15}"
