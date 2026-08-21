@@ -87,14 +87,30 @@ jobs:
           # Extract metadata
           codename=$(echo "$name" | cut -d_ -f1 | tr '[:upper:]' '[:lower:]')
           prop=$(find extracted_images -maxdepth 2 -name "module.prop" -path "*/${codename}-ota-*" 2>/dev/null | head -1)
+          prop_dir=$(dirname "$prop")
           desc=""
+          device_name=""
           if [ -f "$prop" ]; then
             desc=$(grep '^description=' "$prop" | cut -d= -f2- | head -1)
+            device_name=$(grep -m1 '^ro.product.model=' "$prop_dir/system.prop" 2>/dev/null | cut -d= -f2- | head -1)
           fi
+          [ -z "$device_name" ] && device_name="${codename^}"
+
+          zip_hash=$(sha256sum "$zip" | awk '{print $1}')
 
           mkdir -p upload
           mv "$zip" upload/
-          echo "$desc" > upload/metadata-${{ matrix.device }}.txt
+
+          # Save structured metadata for release/Telegram formatting
+          jq -n \
+            --arg codename "$codename" \
+            --arg zip_name "$name" \
+            --arg sha256 "$zip_hash" \
+            --arg device_name "$device_name" \
+            --arg description "$desc" \
+            '{codename: $codename, zip_name: $zip_name, sha256: $sha256, device_name: $device_name, description: $description}' \
+            > "upload/metadata-${codename}.json"
+
           echo "has_new=true" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
@@ -131,17 +147,28 @@ jobs:
             exit 0
           fi
 
-          # Build device list from metadata files
-          DEVICE_LIST=""
-          for meta in new_modules/metadata-*.txt; do
-            [ -f "$meta" ] || continue
-            desc=$(cat "$meta")
-            DEVICE_LIST="${DEVICE_LIST}- ${desc}"$'\n'
+          TAG="build-$(date +%Y%m%d)"
+
+          # Build release notes with code blocks + SHA256
+          RELEASE_BODY="Automated build with $COUNT new module(s)."$'\n\n'
+          for json in new_modules/metadata-*.json; do
+            [ -f "$json" ] || continue
+            zip_name=$(jq -r '.zip_name' "$json")
+            sha256=$(jq -r '.sha256' "$json")
+            RELEASE_BODY+="\`$zip_name\`"$'\n'
+            RELEASE_BODY+="SHA256: \`$sha256\`"$'\n\n'
           done
 
-          TAG="build-$(date +%Y%m%d)"
-          printf 'Automated build with %s new module(s).\n\nDevices:\n%s\n' \
-            "$COUNT" "$DEVICE_LIST" > /tmp/release_notes.md
+          printf '%s' "$RELEASE_BODY" > /tmp/release_notes.md
+
+          # Build Telegram device list
+          DEVICE_LIST=""
+          for json in new_modules/metadata-*.json; do
+            [ -f "$json" ] || continue
+            zip_name=$(jq -r '.zip_name' "$json")
+            device_name=$(jq -r '.device_name' "$json")
+            DEVICE_LIST+="- **${device_name}**: \`${zip_name}\`"$'\n'
+          done
 
           # If release already exists, upload assets; else create it
           if gh release view "$TAG" &>/dev/null; then
@@ -149,7 +176,7 @@ jobs:
             gh release upload "$TAG" new_modules/*.zip --clobber
           else
             gh release create "$TAG" \
-              --title "Pixel Props $TAG" \
+              --title "$TAG" \
               --notes-file /tmp/release_notes.md \
               new_modules/*.zip
           fi
@@ -159,7 +186,7 @@ jobs:
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           {
             echo "devices<<EOF"
-            echo "$DEVICE_LIST"
+            printf '%s' "$DEVICE_LIST"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -171,13 +198,11 @@ jobs:
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           format: markdown
           message: |
-            **Pixel Props — New Build Available**
+            **Pixel Props — New OTA Available !**
 
-            **Tag:** `${{ steps.aggregate.outputs.tag }}`
+            **Tag**: [${{ steps.aggregate.outputs.tag }}](https://github.com/${{ github.repository }}/releases/tag/${{ steps.aggregate.outputs.tag }})
             **Modules:** ${{ steps.aggregate.outputs.count }}
 
-            **Devices:**
+            **Devices**:
             ${{ steps.aggregate.outputs.devices }}
-
-            [GitHub Releases](https://github.com/${{ github.repository }}/releases/tag/${{ steps.aggregate.outputs.tag }})
           document: new_modules/*.zip
