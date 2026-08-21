@@ -67,36 +67,34 @@ jobs:
         id: extract_and_build
         run: ./extract_images.sh
 
-      - name: Check if module build ID already exists
+      - name: Check if module already exists in any release
         id: check_build_id
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           BASENAME="${{ steps.extract_and_build.outputs.module_base_name }}"
-          BUILD_ID="${{ steps.extract_and_build.outputs.device_build_id }}"
-          echo "Checking if build ID ${BASENAME}_${BUILD_ID} exists in release notes..."
+          echo "Checking if ${BASENAME}.zip already exists in previous releases..."
 
-          # Get the list of all releases
-          RELEASES=$(gh release list --limit 100 --json tagName -q '.[].tagName')
-
-          # Search each release's body for the BUILD_ID
           BUILD_EXISTS=false
-          for TAG in $RELEASES; do
+
+          # Get recent releases (newest first)
+          mapfile -t RELEASES < <(gh release list --limit 50 --json tagName -q '.[].tagName')
+
+          for TAG in "${RELEASES[@]}"; do
             echo "Checking release: $TAG"
-            RELEASE_BODY=$(gh release view "$TAG" --json body -q .body || true)
-            if [[ "$RELEASE_BODY" == *"${BASENAME}_${BUILD_ID}"* ]]; then
-              echo "Build ID ${BASENAME}_${BUILD_ID} found in release $TAG."
+            RELEASE_BODY=$(gh release view "$TAG" --json body -q .body 2>/dev/null || true)
+
+            # Match the exact module filename that is written into the release body
+            # e.g. "File name: `Husky_CP2A.260805.005.zip`"
+            if [[ "\( RELEASE_BODY" == *" \){BASENAME}.zip"* ]]; then
+              echo "Found ${BASENAME}.zip in release $TAG → skipping upload"
               BUILD_EXISTS=true
               break
             fi
           done
 
-          if [[ "$BUILD_EXISTS" == "true" ]]; then
-            echo "BUILD_EXISTS=true" >> $GITHUB_OUTPUT
-          else
-            echo "BUILD_EXISTS=false" >> $GITHUB_OUTPUT
-          fi
+          echo "BUILD_EXISTS=$BUILD_EXISTS" >> "$GITHUB_OUTPUT"
 
       - name: Upload files to release
         uses: actions/upload-release-asset@v1
@@ -116,7 +114,7 @@ jobs:
           id: ${{ needs.prepare_build.outputs.id }}
           replacebody: false
           body: |
-            ## ${{ steps.extract_and_build.outputs.device_name }} (${{ steps.extract_and_build.outputs.device_codename }})
+            ## \( {{ steps.extract_and_build.outputs.device_name }} ( \){{ steps.extract_and_build.outputs.device_codename }})
             #### Module
             - File name: `${{ steps.extract_and_build.outputs.module_base_name }}.zip`
             - File hash (SHA256): `${{ steps.extract_and_build.outputs.module_hash }}`
@@ -125,15 +123,15 @@ jobs:
         if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
 
       - name: Send to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         run: |
-          {
-            echo '${{ steps.extract_and_build.outputs.device_name }} - ${{ steps.extract_and_build.outputs.device_codename }}';
-            echo '${{ steps.extract_and_build.outputs.device_build_description }}'
-          } > .tg_caption
+          CAPTION="*Device:* \( {{ steps.extract_and_build.outputs.device_name }} (\` \){{ steps.extract_and_build.outputs.device_codename }}\`)"\( '\n'"*Build:* \` \){{ steps.extract_and_build.outputs.device_build_description }}\`"
 
-          curl -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument" \
-          -H "Content-Type: multipart/form-data" \
-          -F "chat_id=${{ secrets.CHANNEL_ID }}" \
-          -F "document=@${{ steps.extract_and_build.outputs.module_base_name }}.zip;type=application/zip" \
-          -F "caption=$(cat .tg_caption)"
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
+            -F "chat_id=${CHANNEL_ID}" \
+            -F "document=@${{ steps.extract_and_build.outputs.module_base_name }}.zip;type=application/zip" \
+            -F "caption=${CAPTION}" \
+            -F "parse_mode=Markdown"
         if: steps.check_build_id.outputs.BUILD_EXISTS == 'false'
