@@ -133,7 +133,6 @@ for dir in "$EI"/*; do  # List directory ./*
 		for image_name in "${PARTITIONS2EXTRACT[@]}"; do
 			if [ -f "$dir/$image_name.img" ]; then
 				extract_image "$dir" "$image_name"
-				rm "$dir/$image_name.img"
 			fi
 		done
 

@@ -302,7 +302,7 @@ grep_prop() {
   if [[ -f "$FILES_or_VAR" ]]; then
     grep -m1 "^$PROP=" "$FILES_or_VAR" 2>/dev/null | cut -d= -f2- | head -n 1
   else
-    echo "$FILES_or_VAR" | grep -m1 "^$PROP=" 2>/dev/null | cut -d= -f2- | head -n 1
+    grep -m1 "^$PROP=" <<< "$FILES_or_VAR" 2>/dev/null | cut -d= -f2- | head -n 1
   fi
 }
 
