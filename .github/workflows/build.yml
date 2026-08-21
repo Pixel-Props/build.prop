@@ -58,33 +58,35 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          zip=$(ls result/*.zip 2>/dev/null | head -1)
+          # The zip is created at repo root by build_module.sh, not in result/
+          zip=$(find . -maxdepth 1 -name "*.zip" -type f -print -quit 2>/dev/null)
           if [ -z "$zip" ]; then
             echo "has_new=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           name=$(basename "$zip")
+          echo "Built: $name"
 
-          # Query all existing release assets
           EXISTING=$(mktemp)
-          gh release list --limit 50 --json tagName --jq '.[].tagName' 2>/dev/null | \
-            while read -r tag; do
-              gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null
-            done | sort -u > "$EXISTING"
+          trap 'rm -f "$EXISTING"' EXIT
 
-          if grep -qxF "$name" "$EXISTING"; then
+          gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null | \
+            while IFS= read -r tag; do
+              [ -n "$tag" ] || continue
+              gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null >> "$EXISTING" || true
+            done
+
+          if grep -qxF "$name" "$EXISTING" 2>/dev/null; then
             echo "SKIP (already released): $name"
             echo "has_new=false" >> "$GITHUB_OUTPUT"
-            rm -f "$EXISTING" "$zip"
+            rm -f "$zip"
             exit 0
           fi
 
-          rm -f "$EXISTING"
-
           # Extract metadata
           codename=$(echo "$name" | cut -d_ -f1 | tr '[:upper:]' '[:lower:]')
-          prop=$(ls extracted_images/${codename}-ota-*/module.prop 2>/dev/null | head -1)
+          prop=$(find extracted_images -maxdepth 2 -name "module.prop" -path "*/${codename}-ota-*" 2>/dev/null | head -1)
           desc=""
           if [ -f "$prop" ]; then
             desc=$(grep '^description=' "$prop" | cut -d= -f2- | head -1)
