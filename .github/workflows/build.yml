@@ -122,6 +122,7 @@ jobs:
         id: aggregate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           mkdir -p new_modules
           COUNT=$(ls new_modules/*.zip 2>/dev/null | wc -l)
@@ -142,10 +143,16 @@ jobs:
           printf 'Automated build with %s new module(s).\n\nDevices:\n%s\n' \
             "$COUNT" "$DEVICE_LIST" > /tmp/release_notes.md
 
-          gh release create "$TAG" \
-            --title "Pixel Props $TAG" \
-            --notes-file /tmp/release_notes.md \
-            new_modules/*.zip
+          # If release already exists, upload assets; else create it
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            gh release upload "$TAG" new_modules/*.zip --clobber
+          else
+            gh release create "$TAG" \
+              --title "Pixel Props $TAG" \
+              --notes-file /tmp/release_notes.md \
+              new_modules/*.zip
+          fi
 
           echo "has_new=true" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
