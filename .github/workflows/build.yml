@@ -1,0 +1,174 @@
+name: Build and Release Pixel Props
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      devices:
+        description: 'Device codenames (space-separated, or "all")'
+        required: true
+        default: 'all'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      devices: ${{ steps.set_devices.outputs.devices }}
+    steps:
+      - name: Determine device list
+        id: set_devices
+        run: |
+          if [ "${{ github.event.inputs.devices }}" = "all" ] || [ -z "${{ github.event.inputs.devices }}" ]; then
+            JSON='["cubs","husky","komodo","felix","cheetah","tangorpro","caiman","comet","blazer","frankel","mustang"]'
+          else
+            JSON=$(echo '${{ github.event.inputs.devices }}' | tr ' ' '\n' | jq -R . | jq -s .)
+          fi
+          echo "devices=$JSON" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        device: ${{ fromJson(needs.prepare.outputs.devices) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full e2fsprogs erofs-utils lz4 cpio \
+            dos2unix aria2 curl xxd python3 python3-pip jq
+
+      - name: Install Python dependencies
+        run: |
+          pip3 install payload_dumper
+          which payload_dumper || echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Download OTA for ${{ matrix.device }}
+        run: bash download_latest_ota_build.sh ${{ matrix.device }}
+
+      - name: Extract and build
+        run: bash extract_images.sh
+
+      - name: Check for duplicates
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          zip=$(ls result/*.zip 2>/dev/null | head -1)
+          if [ -z "$zip" ]; then
+            echo "has_new=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          name=$(basename "$zip")
+
+          # Query all existing release assets
+          EXISTING=$(mktemp)
+          gh release list --limit 50 --json tagName --jq '.[].tagName' 2>/dev/null | \
+            while read -r tag; do
+              gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null
+            done | sort -u > "$EXISTING"
+
+          if grep -qxF "$name" "$EXISTING"; then
+            echo "SKIP (already released): $name"
+            echo "has_new=false" >> "$GITHUB_OUTPUT"
+            rm -f "$EXISTING" "$zip"
+            exit 0
+          fi
+
+          rm -f "$EXISTING"
+
+          # Extract metadata
+          codename=$(echo "$name" | cut -d_ -f1 | tr '[:upper:]' '[:lower:]')
+          prop=$(ls extracted_images/${codename}-ota-*/module.prop 2>/dev/null | head -1)
+          desc=""
+          if [ -f "$prop" ]; then
+            desc=$(grep '^description=' "$prop" | cut -d= -f2- | head -1)
+          fi
+
+          mkdir -p upload
+          mv "$zip" upload/
+          echo "$desc" > upload/metadata-${{ matrix.device }}.txt
+          echo "has_new=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        if: steps.check.outputs.has_new == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-${{ matrix.device }}
+          path: upload/*
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: module-*
+          merge-multiple: true
+          path: new_modules/
+        continue-on-error: true
+
+      - name: Aggregate and publish
+        id: aggregate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p new_modules
+          COUNT=$(ls new_modules/*.zip 2>/dev/null | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "has_new=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Build device list from metadata files
+          DEVICE_LIST=""
+          for meta in new_modules/metadata-*.txt; do
+            [ -f "$meta" ] || continue
+            desc=$(cat "$meta")
+            DEVICE_LIST="${DEVICE_LIST}- ${desc}"$'\n'
+          done
+
+          TAG="build-$(date +%Y%m%d)"
+          printf 'Automated build with %s new module(s).\n\nDevices:\n%s\n' \
+            "$COUNT" "$DEVICE_LIST" > /tmp/release_notes.md
+
+          gh release create "$TAG" \
+            --title "Pixel Props $TAG" \
+            --notes-file /tmp/release_notes.md \
+            new_modules/*.zip
+
+          echo "has_new=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          {
+            echo "devices<<EOF"
+            echo "$DEVICE_LIST"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Telegram
+        if: steps.aggregate.outputs.has_new == 'true'
+        uses: appleboy/telegram-action@v1
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          message: |
+            **Pixel Props — New Build Available**
+
+            **Tag:** `${{ steps.aggregate.outputs.tag }}`
+            **Modules:** ${{ steps.aggregate.outputs.count }}
+
+            **Devices:**
+            ${{ steps.aggregate.outputs.devices }}
+
+            [GitHub Releases](https://github.com/${{ github.repository }}/releases/tag/${{ steps.aggregate.outputs.tag }})
+          document: new_modules/*.zip
