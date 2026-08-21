@@ -3,6 +3,9 @@
 # Using util_functions.sh
 [ -f "util_functions.sh" ] && . ./util_functions.sh || { echo "util_functions.sh not found" && exit 1; }
 
+# Using requirements.sh
+[ -f "requirements.sh" ] && . ./requirements.sh || { echo "requirements.sh not found" && exit 1; }
+
 # Extracted image paths
 EI="./extracted_images"
 EAI="./extracted_archive_images"
@@ -69,20 +72,18 @@ if [ -d "$EAI_BP" ]; then
 				# Time the extraction
 				extraction_start=$(date +%s)
 
-				# Extract/Dump
+			    # Extract/Dump
 				if [ "${file: -4}" == ".bin" ]; then # If is payload use the Android OTA Dumper
-					# Format the patitions to dump for argument usage
-					partitionsArgs=$(
-						IFS=,
-						echo "${PARTITIONS2EXTRACT[*]}"
-					)
+					# Dump one partition at a time to keep memory usage low
+					for image_name in "${PARTITIONS2EXTRACT[@]}"; do
+						print_message "Dumping \"$image_name\" from payload…" debug
 
-					# Skip image if it failed to get extracted
-					if ! payload_dumper "$file" --partitions="$partitionsArgs" --out="$EI_BP/$basename" 2>/dev/null; then
-						print_message "Failed to extract $file using Android OTA Dumper. Skipping…\n" warning
-						rm -rf "$EI_BP/$basename" # TODO: Use "${var:?}" to ensure this never expands to / .
-						continue
-					fi
+						if ! payload_dumper "$file" --partitions="$image_name" --out="$EI_BP/$basename" 2>/dev/null; then
+							print_message "Failed to extract $image_name from $file using Android OTA Dumper. Skipping…" warning
+							rm -f "$EI_BP/$basename/$image_name.img"
+							continue
+						fi
+					done
 				else # Else directly extract all the required image using 7z
 					for image_name in "${PARTITIONS2EXTRACT[@]}"; do
 						print_message "Extracting \"$image_name\"…" debug
@@ -108,12 +109,18 @@ if [ -d "$EAI_BP" ]; then
 			fi
 		done
 	else
-		print_message "The directory \"$EAI_BP\" does not have any ZIP or BIN files.\n" error
+		print_message "The directory \"$EAI_BP\" does not have any ZIP or BIN files.\n" warning
 	fi
 fi
 
 # Extract the images directories
 [ -d "$EI" ] && print_message "Extracting images…\n" info
+
+# Sanity check: if we have nothing in extracted_images and nothing in extracted_archive_images, abort
+if [ ! -d "$EI" ] || [ -z "$(ls -A "$EI" 2>/dev/null)" ]; then
+  print_message "No extracted images in \"$EI_BP\" and no archives in \"$EAI_BP\". Nothing to process.\n" error
+fi
+
 for dir in "$EI"/*; do  # List directory ./*
 	if [ -d "$dir" ]; then # Check if it is a directory
 		dir=${dir%*/}         # Remove last /
