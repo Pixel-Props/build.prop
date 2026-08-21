@@ -148,6 +148,7 @@ jobs:
           fi
 
           TAG="build-$(date +%Y%m%d)"
+          REPO_URL="https://github.com/${{ github.repository }}"
 
           # Build release notes with code blocks + SHA256
           RELEASE_BODY="Automated build with $COUNT new module(s)."$'\n\n'
@@ -161,13 +162,14 @@ jobs:
 
           printf '%s' "$RELEASE_BODY" > /tmp/release_notes.md
 
-          # Build Telegram device list
+          # Build Telegram device list with clickable download links
           DEVICE_LIST=""
           for json in new_modules/metadata-*.json; do
             [ -f "$json" ] || continue
             zip_name=$(jq -r '.zip_name' "$json")
             device_name=$(jq -r '.device_name' "$json")
-            DEVICE_LIST+="- **${device_name}**: \`${zip_name}\`"$'\n'
+            download_url="${REPO_URL}/releases/download/${TAG}/${zip_name}"
+            DEVICE_LIST+="- **${device_name}**: [${zip_name}](${download_url})"$'\n'
           done
 
           # If release already exists, upload assets; else create it
@@ -196,13 +198,13 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          disable_web_page_preview: true
           format: markdown
           message: |
             **Pixel Props — New OTA Available !**
 
             **Tag**: [${{ steps.aggregate.outputs.tag }}](https://github.com/${{ github.repository }}/releases/tag/${{ steps.aggregate.outputs.tag }})
-            **Modules:** ${{ steps.aggregate.outputs.count }}
+            **Modules**: ${{ steps.aggregate.outputs.count }}
 
             **Devices**:
             ${{ steps.aggregate.outputs.devices }}
-          document: new_modules/*.zip
