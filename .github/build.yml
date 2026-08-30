@@ -1,0 +1,237 @@
+name: Build and Release Pixel Props (BETA)
+
+on:
+  schedule:
+    - cron: '0 0 28 * *'
+  workflow_dispatch:
+    inputs:
+      devices:
+        description: 'Device codenames (space-separated, or "all")'
+        required: true
+        default: 'all'
+      prerelease:
+        description: 'Publish as Pre-Release (dev tag)'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      devices: ${{ steps.set_devices.outputs.devices }}
+      is_prerelease: ${{ steps.set_env.outputs.is_prerelease }}
+    steps:
+      - name: Determine environment
+        id: set_env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine device list
+        id: set_devices
+        run: |
+          if [ "${{ github.event.inputs.devices }}" = "all" ] || [ -z "${{ github.event.inputs.devices }}" ]; then
+            JSON='["marlin", "felix_beta17q2", "tangorpro_beta17q2", "shiba_beta17q2", "husky_beta17q2", "akita_beta17q2", "tokay_beta17q2", "caiman_beta17q2", "komodo_beta17q2", "comet_beta17q2", "tegu_beta17q2", "frankel_beta17q2", "blazer_beta17q2", "mustang_beta17q2", "rango_beta17q2", "stallion_beta17q2"]'
+          else
+            JSON=$(echo '${{ github.event.inputs.devices }}' | tr ' ' '\n' | jq -R . | jq -s .)
+          fi
+          echo "devices=$JSON" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        device: ${{ fromJson(needs.prepare.outputs.devices) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full e2fsprogs erofs-utils lz4 cpio \
+            dos2unix aria2 curl xxd python3 python3-pip jq
+
+      - name: Install Python dependencies
+        run: |
+          pip3 install payload_dumper
+          which payload_dumper || echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Download OTA for ${{ matrix.device }}
+        run: bash download_latest_ota_build.sh ${{ matrix.device }}
+
+      - name: Extract and build
+        run: bash extract_images.sh
+
+      - name: Check for duplicates
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The zip is created at repo root by build_module.sh, not in result/
+          zip=$(find . -maxdepth 1 -name "*.zip" -type f -print -quit 2>/dev/null)
+          if [ -z "$zip" ]; then
+            echo "has_new=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          name=$(basename "$zip")
+          echo "Built: $name"
+
+          EXISTING=$(mktemp)
+          trap 'rm -f "$EXISTING"' EXIT
+
+          gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null | \
+            while IFS= read -r tag; do
+              [ -n "$tag" ] || continue
+              gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null >> "$EXISTING" || true
+            done
+
+          if grep -qxF "$name" "$EXISTING" 2>/dev/null; then
+            echo "SKIP (already released): $name"
+            echo "has_new=false" >> "$GITHUB_OUTPUT"
+            rm -f "$zip"
+            exit 0
+          fi
+
+          # Extract metadata
+          codename=$(echo "$name" | cut -d_ -f1 | tr '[:upper:]' '[:lower:]')
+          prop=$(find extracted_images -maxdepth 2 -name "module.prop" -path "*/${codename}-ota-*" 2>/dev/null | head -1)
+          prop_dir=$(dirname "$prop")
+          desc=""
+          device_name=""
+          if [ -f "$prop" ]; then
+            desc=$(grep '^description=' "$prop" | cut -d= -f2- | head -1)
+            device_name=$(grep -m1 '^ro.product.model=' "$prop_dir/system.prop" 2>/dev/null | cut -d= -f2- | head -1)
+          fi
+          [ -z "$device_name" ] && device_name="${codename^}"
+
+          zip_hash=$(sha256sum "$zip" | awk '{print $1}')
+
+          mkdir -p upload
+          mv "$zip" upload/
+
+          # Save structured metadata for release/Telegram formatting
+          jq -n \
+            --arg codename "$codename" \
+            --arg zip_name "$name" \
+            --arg sha256 "$zip_hash" \
+            --arg device_name "$device_name" \
+            --arg description "$desc" \
+            '{codename: $codename, zip_name: $zip_name, sha256: $sha256, device_name: $device_name, description: $description}' \
+            > "upload/metadata-${codename}.json"
+
+          echo "has_new=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        if: steps.check.outputs.has_new == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-${{ matrix.device }}
+          path: upload/*
+          retention-days: 1
+
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: module-*
+          merge-multiple: true
+          path: new_modules/
+        continue-on-error: true
+
+      - name: Aggregate and publish
+        id: aggregate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
+        run: |
+          mkdir -p new_modules
+          COUNT=$(ls new_modules/*.zip 2>/dev/null | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "has_new=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            TAG="dev-$(date +%Y%m%d)"
+            PRERELEASE_FLAG="--prerelease"
+            TITLE_LABEL="Pixel Props (Dev Pre-Release)"
+          else
+            TAG="beta-$(date +%Y%m%d)"
+            PRERELEASE_FLAG=""
+            TITLE_LABEL="Pixel Props (Beta)"
+          fi
+
+          REPO_URL="https://github.com/${{ github.repository }}"
+
+          # Build release notes with code blocks + SHA256
+          RELEASE_BODY="Automated build with $COUNT new module(s)."$'\n\n'
+          for json in new_modules/metadata-*.json; do
+            [ -f "$json" ] || continue
+            zip_name=$(jq -r '.zip_name' "$json")
+            sha256=$(jq -r '.sha256' "$json")
+            RELEASE_BODY+="\`$zip_name\`"$'\n'
+            RELEASE_BODY+="SHA256: \`$sha256\`"$'\n\n'
+          done
+
+          printf '%s' "$RELEASE_BODY" > /tmp/release_notes.md
+
+          # Build Telegram device list with clickable download links
+          DEVICE_LIST=""
+          for json in new_modules/metadata-*.json; do
+            [ -f "$json" ] || continue
+            zip_name=$(jq -r '.zip_name' "$json")
+            device_name=$(jq -r '.device_name' "$json")
+            download_url="${REPO_URL}/releases/download/${TAG}/${zip_name}"
+            DEVICE_LIST+="- **${device_name}**: [${zip_name}](${download_url})"$'\n'
+          done
+
+          # If release already exists, upload assets; else create it
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, uploading assets..."
+            gh release upload "$TAG" new_modules/*.zip --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              $PRERELEASE_FLAG \
+              --notes-file /tmp/release_notes.md \
+              new_modules/*.zip
+          fi
+
+          echo "has_new=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "title_label=$TITLE_LABEL" >> "$GITHUB_OUTPUT"
+          {
+            echo "devices<<EOF"
+            printf '%s' "$DEVICE_LIST"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Telegram
+        if: steps.aggregate.outputs.has_new == 'true'
+        uses: appleboy/telegram-action@v1
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          disable_web_page_preview: true
+          format: markdown
+          message: |
+            **${{ steps.aggregate.outputs.title_label }} — New OTA Available !**
+
+            **Tag**: [${{ steps.aggregate.outputs.tag }}](https://github.com/${{ github.repository }}/releases/tag/${{ steps.aggregate.outputs.tag }})
+            **Modules**: ${{ steps.aggregate.outputs.count }}
+
+            **Devices**:
+            ${{ steps.aggregate.outputs.devices }}
