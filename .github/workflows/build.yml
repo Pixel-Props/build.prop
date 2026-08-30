@@ -1,5 +1,8 @@
 name: Build and Release Pixel Props (BETA)
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 on:
   schedule:
     - cron: '0 0 28 * *'
@@ -50,6 +53,11 @@ jobs:
         device: ${{ fromJson(needs.prepare.outputs.devices) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Make scripts executable
+        run: chmod +x *.sh module_files/*.sh 2>/dev/null || chmod +x *.sh
 
       - name: Install system dependencies
         run: |
@@ -164,9 +172,9 @@ jobs:
           fi
 
           if [ "$IS_PRERELEASE" = "true" ]; then
-            TAG="dev-$(date +%Y%m%d)"
+            TAG="alpha-$(date +%Y%m%d)"
             PRERELEASE_FLAG="--prerelease"
-            TITLE_LABEL="Pixel Props (Dev Pre-Release)"
+            TITLE_LABEL="Pixel Props (Alpha Pre-Release)"
           else
             TAG="beta-$(date +%Y%m%d)"
             PRERELEASE_FLAG=""
@@ -220,7 +228,10 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Notify Telegram
-        if: steps.aggregate.outputs.has_new == 'true'
+        if: steps.aggregate.outputs.has_new == 'true' && env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != ''
+        env:
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         uses: appleboy/telegram-action@v1
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
