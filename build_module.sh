@@ -27,12 +27,17 @@ device_codename=${device_codename^}
 # Construct the result base
 base_name="${device_codename}_$device_build_id"
 mkdir -p "result/$base_name/"
-mkdir -p "result/$base_name/system/product/etc/"
 
 # Copy relevant files
-cp "$dir"/{module,system}.prop "result/$base_name/"
-cp -r "$dir"/system/ "result/$base_name/"
-cp -r ./module_files/* "result/$base_name/"
+cp "$dir"/{module,system}.prop "result/$base_name/" 2>/dev/null || {
+  print_message "Missing module.prop or system.prop in $dir" error
+}
+
+if [ -d "$dir/system" ]; then
+  cp -r "$dir"/system/ "result/$base_name/"
+fi
+
+cp -r ./module_files/* "result/$base_name/" 2>/dev/null || true
 
 # Navigate to the module directory
 cd "result/$base_name" || exit 1
