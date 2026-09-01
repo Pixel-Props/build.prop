@@ -2,6 +2,7 @@ name: Build and Release Pixel Props
 
 on:
   schedule:
+    # Run every Sunday at 00:00 UTC
     - cron: '0 0 * * 0'
   workflow_dispatch:
     inputs:
@@ -11,6 +12,9 @@ on:
         default: 'all'
 
 jobs:
+  # ------------------------------------------------------------------
+  # PREPARE: Determine which devices to build based on input or default list
+  # ------------------------------------------------------------------
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -19,13 +23,18 @@ jobs:
       - name: Determine device list
         id: set_devices
         run: |
+          # Default device list for scheduled runs or when "all" is specified
           if [ "${{ github.event.inputs.devices }}" = "all" ] || [ -z "${{ github.event.inputs.devices }}" ]; then
-            JSON='["comet", "komodo", "caiman", "husky", "tangorpro", "felix", "cheetah", "frankel", "blazer", "mustang", "cubs", "grizzly", "kodiak", "yogi"]'
+            JSON='["comet", "komodo", "caiman", "husky", "tangorpro", "felix", "cheetah", "frankel", "blazer", "mustang", "stallion", "rango", "cubs", "grizzly", "kodiak", "yogi"]'
           else
+            # Convert space-separated input into a JSON array
             JSON=$(echo '${{ github.event.inputs.devices }}' | tr ' ' '\n' | jq -R . | jq -s .)
           fi
           echo "devices=$JSON" >> "$GITHUB_OUTPUT"
 
+  # ------------------------------------------------------------------
+  # BUILD: Download OTA, extract props, build module, and check for duplicates
+  # ------------------------------------------------------------------
   build:
     needs: prepare
     runs-on: ubuntu-latest
@@ -53,12 +62,12 @@ jobs:
       - name: Extract and build
         run: bash extract_images.sh
 
+      # Check if this module version was already released to avoid duplicates
       - name: Check for duplicates
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # The zip is created at repo root by build_module.sh, not in result/
           zip=$(find . -maxdepth 1 -name "*.zip" -type f -print -quit 2>/dev/null)
           if [ -z "$zip" ]; then
             echo "has_new=false" >> "$GITHUB_OUTPUT"
@@ -68,6 +77,7 @@ jobs:
           name=$(basename "$zip")
           echo "Built: $name"
 
+          # Build a list of all asset names from existing releases
           EXISTING=$(mktemp)
           trap 'rm -f "$EXISTING"' EXIT
 
@@ -77,6 +87,7 @@ jobs:
               gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null >> "$EXISTING" || true
             done
 
+          # Skip if this exact zip was already released
           if grep -qxF "$name" "$EXISTING" 2>/dev/null; then
             echo "SKIP (already released): $name"
             echo "has_new=false" >> "$GITHUB_OUTPUT"
@@ -84,15 +95,19 @@ jobs:
             exit 0
           fi
 
-          # Extract metadata
+          # Extract metadata from the built module
           codename=$(echo "$name" | cut -d_ -f1 | tr '[:upper:]' '[:lower:]')
           prop=$(find extracted_images -maxdepth 2 -name "module.prop" -path "*/${codename}-ota-*" 2>/dev/null | head -1)
           prop_dir=$(dirname "$prop")
           desc=""
           device_name=""
+          build_desc=""
           if [ -f "$prop" ]; then
             desc=$(grep '^description=' "$prop" | cut -d= -f2- | head -1)
-            device_name=$(grep -m1 '^ro.product.model=' "$prop_dir/system.prop" 2>/dev/null | cut -d= -f2- | head -1)
+            if [ -f "$prop_dir/system.prop" ]; then
+              device_name=$(grep -m1 '^ro.product.model=' "$prop_dir/system.prop" 2>/dev/null | cut -d= -f2- | head -1)
+              build_desc=$(grep -m1 '^ro.build.description=' "$prop_dir/system.prop" 2>/dev/null | cut -d= -f2- | head -1)
+            fi
           fi
           [ -z "$device_name" ] && device_name="${codename^}"
 
@@ -101,18 +116,20 @@ jobs:
           mkdir -p upload
           mv "$zip" upload/
 
-          # Save structured metadata for release/Telegram formatting
+          # Save structured metadata for the release aggregation step
           jq -n \
             --arg codename "$codename" \
             --arg zip_name "$name" \
             --arg sha256 "$zip_hash" \
             --arg device_name "$device_name" \
             --arg description "$desc" \
-            '{codename: $codename, zip_name: $zip_name, sha256: $sha256, device_name: $device_name, description: $description}' \
+            --arg build_desc "$build_desc" \
+            '{codename: $codename, zip_name: $zip_name, sha256: $sha256, device_name: $device_name, description: $description, build_desc: $build_desc}' \
             > "upload/metadata-${codename}.json"
 
           echo "has_new=true" >> "$GITHUB_OUTPUT"
 
+      # Upload module + metadata artifact for the release job to collect
       - name: Upload artifact
         if: steps.check.outputs.has_new == 'true'
         uses: actions/upload-artifact@v4
@@ -121,6 +138,9 @@ jobs:
           path: upload/*
           retention-days: 1
 
+  # ------------------------------------------------------------------
+  # RELEASE: Aggregate all built modules, create GitHub release, notify Telegram
+  # ------------------------------------------------------------------
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -134,13 +154,13 @@ jobs:
           path: new_modules/
         continue-on-error: true
 
+      # Collect all modules, generate release notes, publish release, and notify
       - name: Aggregate and publish
         id: aggregate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
-          mkdir -p new_modules
           COUNT=$(ls new_modules/*.zip 2>/dev/null | wc -l)
           if [ "$COUNT" -eq 0 ]; then
             echo "has_new=false" >> "$GITHUB_OUTPUT"
@@ -150,14 +170,21 @@ jobs:
           TAG="build-$(date +%Y%m%d)"
           REPO_URL="https://github.com/${{ github.repository }}"
 
-          # Build release notes with code blocks + SHA256
+          # Build per-device release notes
           RELEASE_BODY="Automated build with $COUNT new module(s)."$'\n\n'
           for json in new_modules/metadata-*.json; do
             [ -f "$json" ] || continue
+            
+            codename=$(jq -r '.codename' "$json")
             zip_name=$(jq -r '.zip_name' "$json")
             sha256=$(jq -r '.sha256' "$json")
-            RELEASE_BODY+="\`$zip_name\`"$'\n'
-            RELEASE_BODY+="SHA256: \`$sha256\`"$'\n\n'
+            device_name=$(jq -r '.device_name' "$json")
+            build_desc=$(jq -r '.build_desc // empty' "$json")
+            
+            RELEASE_BODY+="## ${device_name} (${codename^})"$'\n'
+            RELEASE_BODY+="- File name: \`${zip_name}\`"$'\n'
+            RELEASE_BODY+="- File hash (SHA256): \`${sha256}\`"$'\n'
+            RELEASE_BODY+="- Build Description: \`${build_desc}\`"$'\n\n'
           done
 
           printf '%s' "$RELEASE_BODY" > /tmp/release_notes.md
@@ -172,7 +199,7 @@ jobs:
             DEVICE_LIST+="- **${device_name}**: [${zip_name}](${download_url})"$'\n'
           done
 
-          # If release already exists, upload assets; else create it
+          # Create release if it doesn't exist, otherwise upload to existing
           if gh release view "$TAG" &>/dev/null; then
             echo "Release $TAG already exists, uploading assets..."
             gh release upload "$TAG" new_modules/*.zip --clobber
