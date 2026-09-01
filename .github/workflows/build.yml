@@ -157,7 +157,7 @@ jobs:
   # RELEASE: Aggregate all built modules, create GitHub release, notify Telegram
   # ------------------------------------------------------------------
   release:
-    needs: build
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -185,9 +185,10 @@ jobs:
           TAG="build-$(date +%Y%m%d)"
           REPO_URL="https://github.com/${{ github.repository }}"
 
-          # Build per-device release notes
+          # Build per-device release notes in the order defined in prepare
           RELEASE_BODY="Automated build with $COUNT new module(s)."$'\n\n'
-          for json in new_modules/metadata-*.json; do
+          echo '${{ needs.prepare.outputs.devices }}' | jq -r '.[]' | while IFS= read -r device; do
+            json="new_modules/metadata-${device}.json"
             [ -f "$json" ] || continue
             
             codename=$(jq -r '.codename' "$json")
@@ -204,9 +205,10 @@ jobs:
 
           printf '%s' "$RELEASE_BODY" > /tmp/release_notes.md
 
-          # Build Telegram device list with clickable download links
+          # Build Telegram device list in the order defined in prepare
           DEVICE_LIST=""
-          for json in new_modules/metadata-*.json; do
+          echo '${{ needs.prepare.outputs.devices }}' | jq -r '.[]' | while IFS= read -r device; do
+            json="new_modules/metadata-${device}.json"
             [ -f "$json" ] || continue
             zip_name=$(jq -r '.zip_name' "$json")
             device_name=$(jq -r '.device_name' "$json")
