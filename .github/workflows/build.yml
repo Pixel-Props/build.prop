@@ -23,14 +23,33 @@ jobs:
       - name: Determine device list
         id: set_devices
         run: |
-          # Default device list for scheduled runs or when "all" is specified
+          # All Pixel phones and tablets (oldest to newest)
           if [ "${{ github.event.inputs.devices }}" = "all" ] || [ -z "${{ github.event.inputs.devices }}" ]; then
-            JSON='["comet", "komodo", "caiman", "husky", "tangorpro", "felix", "cheetah", "frankel", "blazer", "mustang", "stallion", "rango", "cubs", "grizzly", "kodiak", "yogi"]'
+            JSON='[
+              "sailfish", "marlin",
+              "walleye", "taimen",
+              "blueline", "crosshatch",
+              "sargo", "bonito",
+              "flame", "coral",
+              "sunfish", "bramble",
+              "redfin", "barbet",
+              "oriole", "raven", "bluejay",
+              "panther", "cheetah", "lynx",
+              "felix", "tangorpro",
+              "shiba", "husky", "akita",
+              "tokay", "caiman", "komodo", "comet", "tegu",
+              "frankel", "blazer", "mustang", "stallion", "rango",
+              "cubs", "grizzly", "kodiak", "yogi"
+            ]'
           else
             # Convert space-separated input into a JSON array
             JSON=$(echo '${{ github.event.inputs.devices }}' | tr ' ' '\n' | jq -R . | jq -s .)
           fi
-          echo "devices=$JSON" >> "$GITHUB_OUTPUT"
+          {
+            echo "devices<<EOF"
+            echo "$JSON"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------------------------
   # BUILD: Download OTA, extract props, build module, and check for duplicates
@@ -77,15 +96,18 @@ jobs:
           name=$(basename "$zip")
           echo "Built: $name"
 
-          # Build a list of all asset names from existing releases
+          # Paginate through ALL releases to build a complete asset list
           EXISTING=$(mktemp)
           trap 'rm -f "$EXISTING"' EXIT
 
-          gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null | \
-            while IFS= read -r tag; do
-              [ -n "$tag" ] || continue
-              gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null >> "$EXISTING" || true
-            done
+          page=1
+          while :; do
+            assets=$(gh api "repos/${{ github.repository }}/releases?per_page=100&page=${page}" \
+              --jq '.[] | .assets[].name' 2>/dev/null)
+            [ -z "$assets" ] && break
+            printf '%s\n' "$assets" >> "$EXISTING"
+            page=$((page + 1))
+          done
 
           # Skip if this exact zip was already released
           if grep -qxF "$name" "$EXISTING" 2>/dev/null; then
@@ -183,8 +205,8 @@ jobs:
             
             RELEASE_BODY+="## ${device_name} (${codename^})"$'\n'
             RELEASE_BODY+="- File name: \`${zip_name}\`"$'\n'
-            RELEASE_BODY+="- File hash (SHA256): \`${sha256}\`"$'\n'
-            RELEASE_BODY+="- Build Description: \`${build_desc}\`"$'\n\n'
+            RELEASE_BODY+="- Build Description: \`${build_desc}\`"$'\n'
+            RELEASE_BODY+="- File hash (SHA256): \`${sha256}\`"$'\n\n'
           done
 
           printf '%s' "$RELEASE_BODY" > /tmp/release_notes.md
