@@ -13,7 +13,7 @@ on:
         required: true
         default: 'all'
       prerelease:
-        description: 'Publish as Pre-Release (dev tag)'
+        description: 'Publish as Pre-Release (alpha tag)'
         required: true
         type: boolean
         default: false
