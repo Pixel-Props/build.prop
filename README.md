@@ -55,7 +55,7 @@ Automated toolchain to fetch, extract, and build Magisk/KernelSU/APatch modules 
   - Manual (`workflow_dispatch`): Custom device names (space-separated or `all`) with optional pre-release flag.
 - **Tag Conventions**:
   - Standard / Scheduled runs: `beta-YYYYMMDD` (Release)
-  - Pre-release manual runs: `dev-YYYYMMDD` (Pre-Release)
+  - Pre-release manual runs: `alpha-YYYYMMDD` (Pre-Release)
 - **Duplicate Prevention**: Queries existing release assets via GitHub CLI (`gh`) to skip rebuilding existing versions.
 - **Telegram Notifications**: Sends release summaries with direct asset download links and formatted device lists.
 
