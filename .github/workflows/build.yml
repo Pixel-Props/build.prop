@@ -23,16 +23,9 @@ jobs:
       - name: Determine device list
         id: set_devices
         run: |
-          # All Pixel phones and tablets (oldest to newest)
+          # Pixel 6 and newer (Tensor-era devices with modern partition layout)
           if [ "${{ github.event.inputs.devices }}" = "all" ] || [ -z "${{ github.event.inputs.devices }}" ]; then
             JSON='[
-              "sailfish", "marlin",
-              "walleye", "taimen",
-              "blueline", "crosshatch",
-              "sargo", "bonito",
-              "flame", "coral",
-              "sunfish", "bramble",
-              "redfin", "barbet",
               "oriole", "raven", "bluejay",
               "panther", "cheetah", "lynx",
               "felix", "tangorpro",
