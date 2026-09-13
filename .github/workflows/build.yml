@@ -175,6 +175,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          # Pass device list via env to avoid subshell/quote issues
+          DEVICES_JSON: ${{ needs.prepare.outputs.devices }}
         run: |
           COUNT=$(ls new_modules/*.zip 2>/dev/null | wc -l)
           if [ "$COUNT" -eq 0 ]; then
@@ -185,18 +187,21 @@ jobs:
           TAG="build-$(date +%Y%m%d)"
           REPO_URL="https://github.com/${{ github.repository }}"
 
-          # Build per-device release notes in the order defined in prepare
+          # Read ordered device list into a bash array (avoids subshell issues)
+          mapfile -t devices < <(echo "$DEVICES_JSON" | jq -r '.[]')
+
+          # Build per-device release notes in prepare-step order
           RELEASE_BODY="Automated build with $COUNT new module(s)."$'\n\n'
-          echo '${{ needs.prepare.outputs.devices }}' | jq -r '.[]' | while IFS= read -r device; do
+          for device in "${devices[@]}"; do
             json="new_modules/metadata-${device}.json"
             [ -f "$json" ] || continue
-            
+
             codename=$(jq -r '.codename' "$json")
             zip_name=$(jq -r '.zip_name' "$json")
             sha256=$(jq -r '.sha256' "$json")
             device_name=$(jq -r '.device_name' "$json")
             build_desc=$(jq -r '.build_desc // empty' "$json")
-            
+
             RELEASE_BODY+="## ${device_name} (${codename^})"$'\n'
             RELEASE_BODY+="- File name: \`${zip_name}\`"$'\n'
             RELEASE_BODY+="- Build Description: \`${build_desc}\`"$'\n'
@@ -205,9 +210,9 @@ jobs:
 
           printf '%s' "$RELEASE_BODY" > /tmp/release_notes.md
 
-          # Build Telegram device list in the order defined in prepare
+          # Build Telegram device list in the same order
           DEVICE_LIST=""
-          echo '${{ needs.prepare.outputs.devices }}' | jq -r '.[]' | while IFS= read -r device; do
+          for device in "${devices[@]}"; do
             json="new_modules/metadata-${device}.json"
             [ -f "$json" ] || continue
             zip_name=$(jq -r '.zip_name' "$json")
